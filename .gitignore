@@ -20,6 +20,10 @@
 # production
 /build
 
+# user-uploaded article media (keep directory via .gitkeep)
+/public/uploads/articles/*
+!/public/uploads/articles/.gitkeep
+
 # misc
 .DS_Store
 *.pem

@@ -1,0 +1,316 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+  MODERATOR
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum BillingCycle {
+  MONTHLY
+  ANNUAL
+  ONE_TIME
+  CUSTOM
+}
+
+enum FeatureDataType {
+  BOOLEAN
+  TEXT
+  OPTIONS
+}
+
+enum ValueKind {
+  YES
+  NO
+  PARTIAL
+  PAID_ADDON
+  UNAVAILABLE
+  UNKNOWN
+}
+
+enum ArticleType {
+  BLOG
+  FINANCE_UPDATE
+}
+
+enum CommentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  HIDDEN
+}
+
+enum SubscriberStatus {
+  PENDING
+  SUBSCRIBED
+  UNSUBSCRIBED
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  name         String
+  role         Role      @default(EDITOR)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  articles       Article[]
+  auditLogs      AuditLog[]
+  verifiedProducts SoftwareProduct[] @relation("VerifiedByRelation")
+  pricingHistories PricingHistory[]
+  moderatedComments Comment[] @relation("ModeratedByRelation")
+
+  @@map("users")
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String
+  slug        String   @unique
+  description String?  @db.Text
+  displayOrder Int     @default(0) @map("display_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  products SoftwareProduct[]
+  articles Article[]
+
+  @@map("categories")
+}
+
+model SoftwareProduct {
+  id                 Int           @id @default(autoincrement())
+  categoryId         Int           @map("category_id")
+  name               String
+  slug               String        @unique
+  mono               String        @default("") @db.VarChar(10)
+  logoUrl            String?       @map("logo_url")
+  tagline            String?       @db.VarChar(255)
+  description        String        @db.Text
+  websiteUrl         String?       @map("website_url")
+  trialUrl           String?       @map("trial_url")
+  targetBusinessSize Json?         @map("target_business_size")
+  targetIndustries   Json?         @map("target_industries")
+  pros               Json?
+  cons               Json?
+  status             PublishStatus @default(PUBLISHED)
+  verifiedAt         DateTime?     @map("verified_at")
+  verifiedById       Int?          @map("verified_by_id")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  category           Category      @relation(fields: [categoryId], references: [id])
+  verifiedBy         User?         @relation("VerifiedByRelation", fields: [verifiedById], references: [id])
+  pricingPlans       PricingPlan[]
+  pricingHistories   PricingHistory[]
+  featureValues      ProductFeatureValue[]
+  comparisonProducts ComparisonProduct[]
+
+  @@map("software_products")
+}
+
+model PricingPlan {
+  id                    Int          @id @default(autoincrement())
+  softwareId            Int          @map("software_id")
+  planName              String       @map("plan_name")
+  priceAmount           Decimal?     @map("price_amount") @db.Decimal(10, 2)
+  billingCycle          BillingCycle @default(ANNUAL) @map("billing_cycle")
+  currency              String       @default("INR") @db.VarChar(10)
+  isStartingPrice       Boolean      @default(false) @map("is_starting_price")
+  displayPrice          String?      @map("display_price") @db.VarChar(100)
+  description           String?      @db.Text
+  verificationSourceUrl String?      @map("verification_source_url") @db.VarChar(500)
+  verifiedAt            DateTime?    @map("verified_at")
+  createdAt             DateTime     @default(now()) @map("created_at")
+
+  software SoftwareProduct @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+
+  @@map("pricing_plans")
+}
+
+model PricingHistory {
+  id          Int      @id @default(autoincrement())
+  softwareId  Int      @map("software_id")
+  planName    String   @map("plan_name")
+  oldPrice    String?  @map("old_price")
+  newPrice    String   @map("new_price")
+  sourceUrl   String?  @map("source_url") @db.VarChar(500)
+  changedById Int?     @map("changed_by_id")
+  recordedAt  DateTime @default(now()) @map("recorded_at")
+
+  software  SoftwareProduct @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  changedBy User?           @relation(fields: [changedById], references: [id])
+
+  @@map("pricing_history")
+}
+
+model FeatureCategory {
+  id           Int       @id @default(autoincrement())
+  name         String
+  slug         String    @unique
+  displayOrder Int       @default(0) @map("display_order")
+
+  features Feature[]
+
+  @@map("feature_categories")
+}
+
+model Feature {
+  id            Int             @id @default(autoincrement())
+  categoryId    Int             @map("category_id")
+  name          String
+  code          String          @unique
+  description   String?         @db.Text
+  dataType      FeatureDataType @default(BOOLEAN) @map("data_type")
+  defaultWeight Int             @default(5) @map("default_weight")
+  displayOrder  Int             @default(0) @map("display_order")
+
+  category      FeatureCategory @relation(fields: [categoryId], references: [id])
+  featureValues ProductFeatureValue[]
+
+  @@map("features")
+}
+
+model ProductFeatureValue {
+  id           Int       @id @default(autoincrement())
+  softwareId   Int       @map("software_id")
+  featureId    Int       @map("feature_id")
+  valueKind    ValueKind @default(YES) @map("value_kind")
+  textValue    String?   @map("text_value") @db.VarChar(255)
+  booleanValue Boolean?  @map("boolean_value")
+  note         String?   @db.Text
+  verifiedAt   DateTime? @map("verified_at")
+
+  software SoftwareProduct @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  feature  Feature         @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([softwareId, featureId])
+  @@map("product_feature_values")
+}
+
+model ComparisonPage {
+  id             Int       @id @default(autoincrement())
+  title          String
+  slug           String    @unique
+  metaTitle      String?   @map("meta_title")
+  metaDescription String?  @map("meta_description") @db.Text
+  ogImageUrl     String?   @map("og_image_url")
+  verdictSummary String?   @map("verdict_summary") @db.Text
+  isPublished    Boolean   @default(true) @map("is_published")
+  publishedAt    DateTime? @map("published_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  comparisonProducts ComparisonProduct[]
+
+  @@map("comparison_pages")
+}
+
+model ComparisonProduct {
+  comparisonPageId Int @map("comparison_page_id")
+  softwareId       Int @map("software_id")
+  displayOrder     Int @default(0) @map("display_order")
+
+  comparisonPage ComparisonPage  @relation(fields: [comparisonPageId], references: [id], onDelete: Cascade)
+  software       SoftwareProduct @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+
+  @@id([comparisonPageId, softwareId])
+  @@map("comparison_products")
+}
+
+model Article {
+  id               Int           @id @default(autoincrement())
+  articleType      ArticleType   @default(BLOG) @map("article_type")
+  title            String
+  slug             String        @unique
+  excerpt          String?       @db.Text
+  content          String        @db.LongText
+  featuredImageUrl String?       @map("featured_image_url")
+  imageUrls        Json?          @map("image_urls")
+  videoUrl         String?       @map("video_url") @db.VarChar(500)
+  metaTitle        String?       @map("meta_title") @db.VarChar(255)
+  metaDescription  String?       @map("meta_description") @db.Text
+  canonicalUrl     String?       @map("canonical_url") @db.VarChar(500)
+  authorId         Int?          @map("author_id")
+  categoryId       Int?          @map("category_id")
+  isPublished      Boolean       @default(true) @map("is_published")
+  publishedAt      DateTime?     @map("published_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  author   User?        @relation(fields: [authorId], references: [id])
+  category Category?    @relation(fields: [categoryId], references: [id])
+  tags     ArticleTag[]
+  comments Comment[]
+
+  @@map("articles")
+}
+
+model ArticleTag {
+  articleId Int    @map("article_id")
+  tagName   String @map("tag_name")
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagName])
+  @@map("article_tags")
+}
+
+model Comment {
+  id           Int           @id @default(autoincrement())
+  articleId    Int           @map("article_id")
+  authorName   String        @map("author_name")
+  authorEmail  String        @map("author_email")
+  content      String        @db.Text
+  status       CommentStatus @default(PENDING)
+  ipHash       String?       @map("ip_hash")
+  moderatedById Int?         @map("moderated_by_id")
+  moderatedAt  DateTime?     @map("moderated_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  article     Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  moderatedBy User?   @relation("ModeratedByRelation", fields: [moderatedById], references: [id])
+
+  @@map("comments")
+}
+
+model NewsletterSubscriber {
+  id               Int              @id @default(autoincrement())
+  email            String           @unique
+  status           SubscriberStatus @default(SUBSCRIBED)
+  unsubscribeToken String           @unique @map("unsubscribe_token")
+  consentAt        DateTime         @default(now()) @map("consent_at")
+  consentIp        String?          @map("consent_ip")
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  @@map("newsletter_subscribers")
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?     @map("user_id")
+  action     String
+  entityName String   @map("entity_name")
+  entityId   Int?     @map("entity_id")
+  changes    Json?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}

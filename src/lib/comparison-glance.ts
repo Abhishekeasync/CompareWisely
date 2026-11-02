@@ -1,4 +1,5 @@
-import type { DynamicMatrixCategory, DynamicMatrixCell } from "@/lib/types/comparison";
+import type { DynamicMatrixCategory, DynamicMatrixCell } from "./types/comparison";
+import { PRODUCT_LOGOS, type ProductLogoKey } from "./product-logos";
 
 export type ComparisonGlanceProduct = {
   name: string;
@@ -7,6 +8,18 @@ export type ComparisonGlanceProduct = {
   tagline?: string;
   mono?: string;
   swClass?: string;
+};
+
+export type GlanceSourceProduct = {
+  name: string;
+  slug: string;
+  mono?: string | null;
+  tagline?: string | null;
+  pros?: unknown;
+  pricingPlans?: Array<{
+    isStartingPrice?: boolean;
+    displayPrice?: string | null;
+  }>;
 };
 
 export type ComparisonGlanceRow = {
@@ -30,6 +43,26 @@ export type ComparisonGlance = {
   sections: ComparisonGlanceSection[];
 };
 
+export function mapGlanceProducts(items: GlanceSourceProduct[]): ComparisonGlanceProduct[] {
+  return items.map((item) => {
+    const startingPlan =
+      item.pricingPlans?.find((plan) => plan.isStartingPrice) ??
+      item.pricingPlans?.[0];
+
+    const pros = Array.isArray(item.pros) ? (item.pros as string[]) : [];
+    const key = (item.slug ? item.slug.split("-")[0] : "") as ProductLogoKey;
+
+    return {
+      name: item.name,
+      price: startingPlan?.displayPrice || "Contact vendor",
+      logo: PRODUCT_LOGOS[key] ?? null,
+      tagline: pros[0] || item.tagline || undefined,
+      mono: item.mono || item.name?.[0] || "",
+      swClass: key,
+    };
+  });
+}
+
 export function formatMatrixCellLabel(cell: DynamicMatrixCell | undefined): string {
   if (!cell || cell.valueKind === "UNKNOWN") return "—";
   if (cell.valueKind === "YES") return cell.textValue?.trim() ? cell.textValue : "Yes";
@@ -41,15 +74,18 @@ export function formatMatrixCellLabel(cell: DynamicMatrixCell | undefined): stri
 }
 
 export function buildComparisonGlanceSections(
-  categories: DynamicMatrixCategory[],
-  productSlugs: string[],
+  categories: DynamicMatrixCategory[] = [],
+  productSlugs: string[] = [],
 ): ComparisonGlanceSection[] {
+  if (!Array.isArray(categories) || !Array.isArray(productSlugs)) {
+    return [];
+  }
   return categories
     .map((category) => ({
       id: String(category.id),
       name: category.name,
-      rows: category.features.map((feature) => {
-        const values = productSlugs.map((slug) => formatMatrixCellLabel(feature.values[slug]));
+      rows: (category.features || []).map((feature) => {
+        const values = productSlugs.map((slug) => formatMatrixCellLabel(feature.values?.[slug]));
         const long =
           feature.dataType === "TEXT" ||
           feature.code === "starting_price" ||
@@ -59,7 +95,7 @@ export function buildComparisonGlanceSections(
           id: String(feature.id),
           name: feature.name,
           values,
-          differs: feature.isDifferent,
+          differs: Boolean(feature.isDifferent),
           long,
         };
       }),

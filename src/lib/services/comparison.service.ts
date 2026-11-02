@@ -195,7 +195,9 @@ export async function getCuratedComparison(slug: string) {
 
   if (!comparison) return null;
 
-  const slugs = comparison.comparisonProducts.map((cp) => cp.software.slug);
+  const slugs = comparison.comparisonProducts
+    .map((cp) => cp.software?.slug)
+    .filter((s): s is string => Boolean(s));
   const matrix = await getComparisonMatrix(slugs);
 
   return {

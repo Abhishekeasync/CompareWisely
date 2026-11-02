@@ -7,7 +7,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "npx --yes tsx --test src/lib/compare.test.ts src/lib/db.test.ts src/lib/services.test.ts src/lib/recommendation.test.ts src/lib/content.test.ts src/lib/admin.test.ts",
+    "test": "npx --yes tsx --test src/lib/compare.test.ts src/lib/comparison-glance.test.ts src/lib/homepage-simulation.test.ts src/lib/db.test.ts src/lib/services.test.ts src/lib/recommendation.test.ts src/lib/content.test.ts src/lib/admin.test.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",

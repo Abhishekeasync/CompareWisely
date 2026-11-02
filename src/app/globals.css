@@ -1259,6 +1259,7 @@ a[style*="border: 1px solid var(--border)"] {
 
 .hero.hero--morph {
   padding-block: clamp(48px, 8vw, 88px) clamp(12px, 3vw, 28px);
+  margin-bottom: 4rem;
 }
 .hero__intro {
   display: flex;
@@ -2075,4 +2076,368 @@ a[style*="border: 1px solid var(--border)"] {
   .feat-stage__copy,
   .feat-stage__canvas-item,
   .feat-stage__rail i { transition: none; }
+}
+
+/* ==========================================================================
+   Vibrant "On the desk" Editorial Section
+   ========================================================================== */
+.section--desk {
+  padding-block: clamp(56px, 8vw, 96px);
+  position: relative;
+}
+
+.desk-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: clamp(32px, 5vw, 48px);
+}
+
+.desk-head__left {
+  max-width: 38rem;
+}
+
+.desk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary-text);
+  background: var(--primary-soft);
+  border: 1px solid color-mix(in srgb, var(--primary-text) 24%, transparent);
+  margin-bottom: 14px;
+}
+
+.desk-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary-text);
+  box-shadow: 0 0 8px var(--primary-text);
+}
+
+.desk-title {
+  font-family: var(--font-display-family), "Newsreader", Georgia, serif;
+  font-size: clamp(2.2rem, 4.2vw, 3.2rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+  margin: 0;
+  color: var(--fg);
+}
+
+.desk-sub {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: clamp(1rem, 1.4vw, 1.1rem);
+  line-height: 1.5;
+}
+
+.desk-head__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--fg-soft);
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 5%, var(--surface));
+  border: 1px solid var(--border);
+  transition: all 200ms ease;
+}
+
+.desk-head__link:hover {
+  color: var(--primary-text);
+  border-color: color-mix(in srgb, var(--primary-text) 40%, var(--border));
+  background: var(--surface);
+  transform: translateX(2px);
+}
+
+.desk-head__link svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 200ms ease;
+}
+
+.desk-head__link:hover svg {
+  transform: translateX(3px);
+}
+
+.desk-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(20px, 3vw, 32px);
+}
+
+.desk-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: clamp(26px, 3.5vw, 36px);
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+  box-shadow: 0 4px 16px -8px rgba(28, 25, 21, 0.04);
+  transition:
+    transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 280ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.desk-card__glow {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--primary-text) 16%, transparent) 0%, transparent 70%);
+  opacity: 0;
+  transform: translate(25%, -25%);
+  transition: opacity 360ms ease, transform 360ms ease;
+}
+
+.desk-card:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--primary-text) 45%, var(--border));
+  box-shadow:
+    0 24px 48px -12px rgba(28, 25, 21, 0.1),
+    0 8px 16px -8px rgba(28, 25, 21, 0.05),
+    0 0 0 1px color-mix(in srgb, var(--primary-text) 22%, transparent);
+}
+
+[data-theme="dark"] .desk-card {
+  box-shadow: 0 4px 16px -8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .desk-card:hover {
+  box-shadow:
+    0 24px 48px -12px rgba(0, 0, 0, 0.55),
+    0 8px 16px -8px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(231, 176, 138, 0.28);
+}
+
+.desk-card:hover .desk-card__glow {
+  opacity: 1;
+  transform: translate(15%, -15%);
+}
+
+.desk-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.desk-card__tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.desk-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.desk-tag--gst {
+  background: color-mix(in srgb, var(--amber) 12%, var(--surface));
+  color: var(--amber);
+  border: 1px solid color-mix(in srgb, var(--amber) 28%, transparent);
+}
+
+.desk-tag--cbic {
+  background: color-mix(in srgb, var(--info) 10%, var(--surface));
+  color: var(--info);
+  border: 1px solid color-mix(in srgb, var(--info) 26%, transparent);
+}
+
+[data-theme="dark"] .desk-tag--cbic {
+  background: rgba(147, 197, 253, 0.12);
+  color: #93c5fd;
+  border-color: rgba(147, 197, 253, 0.28);
+}
+
+.desk-tag__bullet {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.desk-tag--meta {
+  background: color-mix(in srgb, var(--fg) 5%, var(--surface));
+  color: var(--muted);
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.desk-card__index {
+  font-family: var(--font-mono-family), monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted-2);
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--fg) 4%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.desk-card__content {
+  margin-bottom: 28px;
+}
+
+.desk-card__title {
+  font-family: var(--font-display-family), "Newsreader", Georgia, serif;
+  font-size: clamp(1.45rem, 2.3vw, 1.85rem);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+  color: var(--fg);
+  margin: 0 0 12px;
+  transition: color 200ms ease;
+}
+
+.desk-card:hover .desk-card__title {
+  color: var(--primary-text);
+}
+
+.desk-card__body {
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.58;
+  margin: 0;
+}
+
+.desk-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.desk-card__chip {
+  font-size: 0.78rem;
+  font-weight: 550;
+  color: var(--muted-2);
+  letter-spacing: 0.02em;
+}
+
+.desk-card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+
+.desk-card__cta-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--fg) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  color: var(--fg);
+  transition: all 220ms ease;
+}
+
+.desk-card__cta-btn svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 220ms ease;
+}
+
+.desk-card:hover .desk-card__cta-btn {
+  background: var(--primary-text);
+  color: #ffffff;
+  border-color: var(--primary-text);
+  transform: translateX(4px);
+}
+
+.desk-card:hover .desk-card__cta-btn svg {
+  transform: translateX(2px);
+}
+
+.desk-trust-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: clamp(32px, 5vw, 44px);
+  padding: 16px 22px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--fg) 3%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.desk-trust-bar__icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: var(--primary-text);
+}
+
+.desk-trust-bar__text {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.desk-trust-bar__text strong {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+@media (max-width: 820px) {
+  .desk-grid {
+    grid-template-columns: 1fr;
+  }
+  .desk-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desk-card,
+  .desk-card__glow,
+  .desk-card__title,
+  .desk-card__cta-btn,
+  .desk-head__link {
+    transition: none;
+    transform: none;
+  }
 }

@@ -18,7 +18,7 @@ function productMark(product: ComparisonGlanceProduct) {
   if (product.logo) {
     return <img className="comparison-glance__logo" src={product.logo} alt="" />;
   }
-  const key = product.mono?.slice(0, 1) || product.name[0];
+  const key = product.mono?.slice(0, 1) || product.name?.[0] || "?";
   return (
     <span className={`swlogo swlogo--sm ${product.swClass ?? ""}`.trim()} aria-hidden="true">
       {key}

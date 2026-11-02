@@ -4,8 +4,10 @@ import { ChevronIcon } from "@/components/icons";
 import { ComparisonGlanceHero } from "@/components/home/comparison-glance";
 import { FeatureStage } from "@/components/home/feature-stage";
 import { MorphingHeadline } from "@/components/home/morphing-headline";
-import { buildLeadComparisonGlance } from "@/lib/comparison-glance";
-import { PRODUCT_LOGOS, type ProductLogoKey } from "@/lib/product-logos";
+import {
+  buildLeadComparisonGlance,
+  mapGlanceProducts,
+} from "@/lib/comparison-glance";
 import { getSoftwareBySlug } from "@/lib/services/software.service";
 import { getCuratedComparison } from "@/lib/services/comparison.service";
 
@@ -20,14 +22,22 @@ export const instant = false;
 const NOTES = [
   {
     href: "/blog/gstr-2b-reconciliation",
-    kicker: "GST · 12 min",
+    index: "01",
+    badge: "GST Reconciliation",
+    badgeType: "gst",
+    readTime: "12 min read",
+    highlight: "Tally · Zoho · Busy",
     title: "GSTR-2B reconciliation",
     body: "How Tally, Zoho and Busy treat purchase reconciliation when 2B and your books disagree.",
     action: "Read the note",
   },
   {
     href: "/finance-updates",
-    kicker: "CBIC",
+    index: "02",
+    badge: "CBIC Mandate",
+    badgeType: "cbic",
+    readTime: "Compliance Alert",
+    highlight: "Turnover Thresholds · 2026",
     title: "E-invoicing in 2026",
     body: "The turnover threshold note, with a reminder to confirm the live rule before you change a filing process.",
     action: "Read the update",
@@ -36,21 +46,7 @@ const NOTES = [
 
 const COMPARISON_HREF = "/compare/tally-prime-vs-zoho-books";
 
-function mapGlanceProducts(items: NonNullable<Awaited<ReturnType<typeof getSoftwareBySlug>>>[]) {
-  return items.map((item) => {
-    const startingPlan = item.pricingPlans.find((plan) => plan.isStartingPrice);
-    const pros = (item.pros as string[]) || [];
-    const key = item.slug.split("-")[0] as ProductLogoKey;
-    return {
-      name: item.name,
-      price: startingPlan?.displayPrice || "Contact vendor",
-      logo: PRODUCT_LOGOS[key] ?? null,
-      tagline: pros[0] || item.tagline || undefined,
-      mono: item.mono || item.name[0],
-      swClass: key,
-    };
-  });
-}
+type SoftwareWithRelations = NonNullable<Awaited<ReturnType<typeof getSoftwareBySlug>>>;
 
 export default async function HomePage() {
   const [curatedData, tallyProduct, zohoProduct] = await Promise.all([
@@ -60,7 +56,7 @@ export default async function HomePage() {
   ]);
 
   const glanceProducts = [tallyProduct, zohoProduct].filter(
-    (p): p is NonNullable<typeof p> => p !== undefined,
+    (p): p is SoftwareWithRelations => p != null,
   );
 
   const productSlugs = glanceProducts.map((item) => item.slug);
@@ -70,7 +66,7 @@ export default async function HomePage() {
           title: curatedData?.page.title || "Tally Prime vs Zoho Books",
           href: COMPARISON_HREF,
           products: mapGlanceProducts(glanceProducts),
-          categories: curatedData?.matrix.categories ?? [],
+          categories: curatedData?.matrix?.categories ?? [],
           productSlugs,
         })
       : null;
@@ -103,31 +99,74 @@ export default async function HomePage() {
 
       {leadComparison ? <FeatureStage comparison={leadComparison} /> : null}
 
-      <section className="section section--follow" aria-labelledby="reading-heading">
+      <section className="section section--desk" aria-labelledby="reading-heading">
         <div className="container">
-          <header className="section-head">
-            <h2 id="reading-heading">On the desk</h2>
-            <p className="muted">One GST note and one compliance update.</p>
+          <header className="desk-head">
+            <div className="desk-head__left">
+              <span className="desk-badge">
+                <span className="desk-badge__dot" aria-hidden="true" />
+                Editorial &amp; Compliance
+              </span>
+              <h2 id="reading-heading" className="desk-title">On the desk</h2>
+              <p className="desk-sub">One GST note and one compliance update.</p>
+            </div>
+            <Link className="desk-head__link" href="/blog">
+              Browse all publications
+              <ChevronIcon />
+            </Link>
           </header>
-          <div className="story-grid">
-            {NOTES.map((note, index) => (
-              <Link key={note.href} className="story-card" href={note.href}>
-                <span className="path-card__index">{String(index + 4).padStart(2, "0")}</span>
-                <span className="eyebrow">{note.kicker}</span>
-                <span>
-                  <b>{note.title}</b>
-                  <p>{note.body}</p>
-                </span>
-                <span className="path-card__go">
-                  {note.action}
-                  <ChevronIcon />
-                </span>
+
+          <div className="desk-grid">
+            {NOTES.map((note) => (
+              <Link key={note.href} className="desk-card" href={note.href}>
+                <div className="desk-card__glow" aria-hidden="true" />
+                <div className="desk-card__top">
+                  <div className="desk-card__tags">
+                    <span className={`desk-tag desk-tag--${note.badgeType}`}>
+                      <span className="desk-tag__bullet" aria-hidden="true" />
+                      {note.badge}
+                    </span>
+                    <span className="desk-tag desk-tag--meta">{note.readTime}</span>
+                  </div>
+                  <span className="desk-card__index">{note.index}</span>
+                </div>
+
+                <div className="desk-card__content">
+                  <h3 className="desk-card__title">{note.title}</h3>
+                  <p className="desk-card__body">{note.body}</p>
+                </div>
+
+                <div className="desk-card__foot">
+                  <span className="desk-card__chip">{note.highlight}</span>
+                  <span className="desk-card__cta">
+                    <span>{note.action}</span>
+                    <span className="desk-card__cta-btn" aria-hidden="true">
+                      <ChevronIcon />
+                    </span>
+                  </span>
+                </div>
               </Link>
             ))}
           </div>
-          <p className="trust">
-            CompareWisely is not affiliated with the software vendors reviewed. Information is general guidance. Verify prices, GST rules and product features with the official source.
-          </p>
+
+          <div className="desk-trust-bar">
+            <svg
+              className="desk-trust-bar__icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+            <p className="desk-trust-bar__text">
+              <strong>Independent Guidance:</strong> CompareWisely is not affiliated with the software vendors reviewed. Information is general guidance. Verify prices, GST rules and product features with official vendor and CBIC documentation.
+            </p>
+          </div>
         </div>
       </section>
     </>

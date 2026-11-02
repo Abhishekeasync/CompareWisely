@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "test": "npx --yes tsx --test src/lib/compare.test.ts src/lib/db.test.ts src/lib/services.test.ts src/lib/recommendation.test.ts src/lib/content.test.ts src/lib/admin.test.ts",

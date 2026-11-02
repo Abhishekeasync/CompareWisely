@@ -369,7 +369,7 @@ export default async function SoftwareDetailPage({ params }: Props) {
                                 fontSize: "0.74rem",
                                 fontWeight: 650,
                                 padding: "2px 8px",
-                                borderRadius: "2px",
+                                borderRadius: "var(--r-sm)",
                                 color: badgeColor,
                                 background: badgeBg,
                               }}

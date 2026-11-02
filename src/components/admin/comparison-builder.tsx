@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHead } from "@/components/page-head";
 import { AdminNav } from "@/components/admin/admin-nav";
+import { uiInput as INPUT_STYLE, uiInputMono as MONO_INPUT } from "@/lib/ui-surfaces";
 
 interface SoftwareOption {
   id: number;
@@ -24,22 +25,6 @@ function autoSlug(str: string) {
     .replace(/[\s_-]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
-
-const INPUT_STYLE: React.CSSProperties = {
-  width: "100%",
-  padding: "9px 12px",
-  border: "1px solid var(--border)",
-  background: "var(--surface)",
-  color: "var(--fg)",
-  fontSize: "0.9rem",
-};
-
-const MONO_INPUT: React.CSSProperties = {
-  ...INPUT_STYLE,
-  fontFamily: "monospace",
-  fontSize: "0.85rem",
-  background: "var(--surface-2)",
-};
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (

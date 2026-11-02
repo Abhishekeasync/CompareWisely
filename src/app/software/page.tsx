@@ -88,6 +88,7 @@ export default async function SoftwareDirectoryPage({ searchParams }: Props) {
                     key={item.id}
                     style={{
                       border: "1px solid var(--border)",
+                      borderRadius: "var(--r-lg)",
                       padding: "24px",
                       display: "flex",
                       flexDirection: "column",
@@ -128,6 +129,7 @@ export default async function SoftwareDirectoryPage({ searchParams }: Props) {
                           background: "var(--bg)",
                           padding: "10px 14px",
                           marginBottom: "16px",
+                          borderRadius: "var(--r-md)",
                           borderLeft: "3px solid var(--primary-text)",
                         }}
                       >

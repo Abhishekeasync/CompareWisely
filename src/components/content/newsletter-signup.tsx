@@ -53,6 +53,7 @@ export function NewsletterSignup() {
         padding: "28px",
         background: "var(--surface)",
         border: "1px solid var(--border)",
+        borderRadius: "var(--r-lg)",
         marginTop: "48px",
       }}
     >
@@ -82,6 +83,7 @@ export function NewsletterSignup() {
                   flex: 1,
                   padding: "10px 14px",
                   border: "1px solid var(--border)",
+                  borderRadius: "var(--r-pill)",
                   background: "var(--surface-2)",
                   color: "var(--fg)",
                   fontSize: "0.875rem",
@@ -92,13 +94,12 @@ export function NewsletterSignup() {
               </button>
             </div>
 
-            <label className="row gap-8" style={{ alignItems: "flex-start", cursor: "pointer", fontSize: "0.75rem", color: "var(--muted)" }}>
+            <label className="row gap-8" style={{ cursor: "pointer", fontSize: "0.75rem", color: "var(--muted)", lineHeight: 1.4 }}>
               <input
                 type="checkbox"
                 required
                 checked={consent}
                 onChange={(e) => setConsent(e.target.checked)}
-                style={{ marginTop: "2px" }}
               />
               <span>I agree to receive monthly software &amp; GST compliance emails.</span>
             </label>

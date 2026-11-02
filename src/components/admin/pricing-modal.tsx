@@ -80,12 +80,11 @@ export function PricingVerificationModal({ software, onClose }: PricingVerificat
       }}
     >
       <div
-        className="panel card--pad"
+        className="panel card--pad ui-surface"
         style={{
           width: "100%",
           maxWidth: "520px",
           padding: "28px",
-          background: "var(--surface)",
         }}
       >
         <div className="row between" style={{ marginBottom: "16px" }}>

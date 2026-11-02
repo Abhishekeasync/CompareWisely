@@ -8,6 +8,7 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { isDirectHostedVideoUrl, isManagedArticleMediaUrl } from "@/lib/uploads/article-media-config";
 import { MAX_ARTICLE_IMAGES, normalizeArticleImageUrls } from "@/lib/uploads/article-images";
 import { isArticleMediaUrl } from "@/lib/validations/media-url";
+import { uiInput as INPUT_STYLE, uiInputMono as MONO_INPUT } from "@/lib/ui-surfaces";
 
 interface CategoryOption {
   id: number;
@@ -83,23 +84,6 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
     </div>
   );
 }
-
-const INPUT_STYLE: React.CSSProperties = {
-  width: "100%",
-  padding: "9px 12px",
-  border: "1px solid var(--border)",
-  background: "var(--surface)",
-  color: "var(--fg)",
-  fontSize: "0.9rem",
-  outline: "none",
-};
-
-const MONO_INPUT: React.CSSProperties = {
-  ...INPUT_STYLE,
-  fontFamily: "monospace",
-  fontSize: "0.85rem",
-  background: "var(--surface-2)",
-};
 
 /* ══════════════════════════════════════════════════════════
    Main Editor Component
@@ -748,7 +732,7 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
                         marginTop: "4px",
                         height: "3px",
                         background: "var(--border)",
-                        borderRadius: "2px",
+                        borderRadius: "var(--r-sm)",
                         overflow: "hidden",
                       }}
                     >
@@ -786,7 +770,7 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
                         marginTop: "4px",
                         height: "3px",
                         background: "var(--border)",
-                        borderRadius: "2px",
+                        borderRadius: "var(--r-sm)",
                         overflow: "hidden",
                       }}
                     >

@@ -1,5 +1,5 @@
 import { prisma } from "../db";
-import { ArticleType, CommentStatus } from "@prisma/client";
+import { ArticleType, CommentStatus, Prisma } from "@prisma/client";
 import type { CommentSubmitInput } from "../validations/content";
 import {
   articleImageUrlsForStorage,
@@ -11,6 +11,8 @@ export interface GetArticlesOptions {
   type?: ArticleType;
   categorySlug?: string;
   tag?: string;
+  /** Matches title, excerpt, category name, and tag names. */
+  search?: string;
   limit?: number;
   offset?: number;
   /** Omit full body text for index pages (smaller DB payloads, faster TTFB). */
@@ -18,9 +20,9 @@ export interface GetArticlesOptions {
 }
 
 export async function getArticles(options: GetArticlesOptions = {}) {
-  const { type, categorySlug, tag, limit = 20, offset = 0, listFieldsOnly = false } = options;
+  const { type, categorySlug, tag, search, limit = 20, offset = 0, listFieldsOnly = false } = options;
 
-  const whereClause: any = {
+  const whereClause: Prisma.ArticleWhereInput = {
     isPublished: true,
   };
 
@@ -42,6 +44,20 @@ export async function getArticles(options: GetArticlesOptions = {}) {
     };
   }
 
+  const term = search?.trim();
+  if (term) {
+    whereClause.AND = [
+      {
+        OR: [
+          { title: { contains: term } },
+          { excerpt: { contains: term } },
+          { category: { name: { contains: term } } },
+          { tags: { some: { tagName: { contains: term } } } },
+        ],
+      },
+    ];
+  }
+
   const countPromise = prisma.article.count({ where: whereClause });
 
   const articlesPromise = listFieldsOnly
@@ -53,6 +69,8 @@ export async function getArticles(options: GetArticlesOptions = {}) {
           title: true,
           excerpt: true,
           publishedAt: true,
+          updatedAt: true,
+          featuredImageUrl: true,
           category: true,
           author: {
             select: {
@@ -63,7 +81,7 @@ export async function getArticles(options: GetArticlesOptions = {}) {
           },
           tags: true,
         },
-        orderBy: { publishedAt: "desc" },
+        orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
         take: limit,
         skip: offset,
       })
@@ -87,7 +105,7 @@ export async function getArticles(options: GetArticlesOptions = {}) {
             },
           },
         },
-        orderBy: { publishedAt: "desc" },
+        orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
         take: limit,
         skip: offset,
       });
@@ -98,6 +116,51 @@ export async function getArticles(options: GetArticlesOptions = {}) {
     articles,
     total,
   };
+}
+
+export async function getBlogCategories(type: ArticleType = ArticleType.BLOG) {
+  return prisma.category.findMany({
+    where: {
+      articles: {
+        some: {
+          isPublished: true,
+          articleType: type,
+        },
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      _count: {
+        select: {
+          articles: {
+            where: {
+              isPublished: true,
+              articleType: type,
+            },
+          },
+        },
+      },
+    },
+    orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+  });
+}
+
+/** Character length of article bodies, without loading the bodies into the listing. */
+export async function getArticleContentLengths(ids: number[]) {
+  const lengths = new Map<number, number>();
+  if (ids.length === 0) return lengths;
+
+  const rows = await prisma.$queryRaw<Array<{ id: number | bigint; chars: number | bigint }>>(
+    Prisma.sql`SELECT id, CHAR_LENGTH(content) AS chars FROM articles WHERE id IN (${Prisma.join(ids)})`
+  );
+
+  for (const row of rows) {
+    lengths.set(Number(row.id), Number(row.chars));
+  }
+
+  return lengths;
 }
 
 export async function getArticleBySlug(slug: string) {

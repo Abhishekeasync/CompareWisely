@@ -269,7 +269,7 @@ export default async function DynamicCuratedComparePage({ params }: Props) {
                                       style={{
                                         display: "inline-block",
                                         padding: "3px 8px",
-                                        borderRadius: "2px",
+                                        borderRadius: "var(--r-sm)",
                                         fontWeight: 600,
                                         color: badgeColor,
                                         background: badgeBg,

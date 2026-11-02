@@ -77,7 +77,7 @@ export default async function AdminAuditLogsPage() {
                           fontSize: "0.75rem",
                           background: "var(--surface-2)",
                           padding: "6px 8px",
-                          borderRadius: "4px",
+                          borderRadius: "var(--r-sm)",
                           maxWidth: "360px",
                           overflowX: "auto",
                         }}

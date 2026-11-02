@@ -566,7 +566,7 @@ export function AdminSoftwareTable({
             right: "24px",
             zIndex: 9999,
             padding: "12px 20px",
-            borderRadius: "6px",
+            borderRadius: "var(--r-md)",
             fontSize: "0.875rem",
             fontWeight: 600,
             background: toast.type === "success" ? "#065f46" : "#991b1b",
@@ -686,7 +686,7 @@ export function AdminSoftwareTable({
               background: "var(--surface-2)",
               border: "1px solid var(--border)",
               color: "var(--text)",
-              borderRadius: "4px",
+              borderRadius: "var(--r-sm)",
               fontSize: "0.875rem",
             }}
           />
@@ -701,7 +701,7 @@ export function AdminSoftwareTable({
               background: "var(--surface-2)",
               border: "1px solid var(--border)",
               color: "var(--text)",
-              borderRadius: "4px",
+              borderRadius: "var(--r-sm)",
               fontSize: "0.875rem",
             }}
           >
@@ -720,7 +720,7 @@ export function AdminSoftwareTable({
                 background: "var(--surface-2)",
                 border: "1px solid var(--border)",
                 color: "var(--text)",
-                borderRadius: "4px",
+                borderRadius: "var(--r-sm)",
                 fontSize: "0.875rem",
               }}
             >
@@ -840,7 +840,7 @@ export function AdminSoftwareTable({
                               width: "36px",
                               height: "36px",
                               objectFit: "contain",
-                              borderRadius: "6px",
+                              borderRadius: "var(--r-md)",
                               border: "1px solid var(--border)",
                               background: "var(--surface-2)",
                             }}
@@ -856,7 +856,7 @@ export function AdminSoftwareTable({
                               justifyContent: "center",
                               width: "36px",
                               height: "36px",
-                              borderRadius: "6px",
+                              borderRadius: "var(--r-md)",
                               background: "var(--surface-2)",
                               border: "1px solid var(--border)",
                               fontWeight: 700,
@@ -923,7 +923,7 @@ export function AdminSoftwareTable({
                           padding: "2px 8px",
                           fontSize: "0.75rem",
                           fontWeight: 600,
-                          borderRadius: "4px",
+                          borderRadius: "var(--r-sm)",
                           background: cpCount > 0 ? "rgba(16, 185, 129, 0.12)" : "var(--surface-2)",
                           color: cpCount > 0 ? "#10b981" : "var(--muted)",
                           border: `1px solid ${cpCount > 0 ? "#10b981" : "var(--border)"}`,
@@ -941,7 +941,7 @@ export function AdminSoftwareTable({
                           padding: "2px 8px",
                           fontSize: "0.72rem",
                           fontWeight: 700,
-                          borderRadius: "3px",
+                          borderRadius: "var(--r-sm)",
                           letterSpacing: "0.04em",
                           background:
                             sw.status === "PUBLISHED"
@@ -981,7 +981,7 @@ export function AdminSoftwareTable({
                               background: isStale ? "var(--amber-soft)" : "var(--primary-soft)",
                               color: isStale ? "var(--amber)" : "var(--primary-text)",
                               border: `1px solid ${isStale ? "var(--amber)" : "var(--primary)"}`,
-                              borderRadius: "3px",
+                              borderRadius: "var(--r-sm)",
                             }}
                           >
                             {isStale ? "STALE (>90d)" : "VERIFIED"}
@@ -1004,7 +1004,7 @@ export function AdminSoftwareTable({
                             background: "var(--danger-soft)",
                             color: "var(--danger)",
                             border: "1px solid var(--danger)",
-                            borderRadius: "3px",
+                            borderRadius: "var(--r-sm)",
                           }}
                         >
                           UNVERIFIED
@@ -1142,7 +1142,7 @@ export function AdminSoftwareTable({
               padding: "24px",
               background: "var(--surface)",
               border: "1px solid var(--border)",
-              borderRadius: "8px",
+              borderRadius: "var(--r-md)",
               display: "flex",
               flexDirection: "column",
             }}
@@ -1192,7 +1192,7 @@ export function AdminSoftwareTable({
                   color: modalTab === "details" ? "var(--primary-text)" : "var(--muted)",
                   background: modalTab === "details" ? "var(--primary-soft)" : "transparent",
                   border: "none",
-                  borderRadius: "4px",
+                  borderRadius: "var(--r-sm)",
                   cursor: "pointer",
                 }}
               >
@@ -1208,7 +1208,7 @@ export function AdminSoftwareTable({
                   color: modalTab === "checkpoints" ? "var(--primary-text)" : "var(--muted)",
                   background: modalTab === "checkpoints" ? "var(--primary-soft)" : "transparent",
                   border: "none",
-                  borderRadius: "4px",
+                  borderRadius: "var(--r-sm)",
                   cursor: "pointer",
                   display: "inline-flex",
                   alignItems: "center",
@@ -1220,7 +1220,7 @@ export function AdminSoftwareTable({
                   style={{
                     fontSize: "0.75rem",
                     padding: "2px 6px",
-                    borderRadius: "10px",
+                    borderRadius: "var(--r-md)",
                     background: "var(--surface-2)",
                     border: "1px solid var(--border)",
                   }}
@@ -1238,7 +1238,7 @@ export function AdminSoftwareTable({
                   color: modalTab === "verdict" ? "var(--primary-text)" : "var(--muted)",
                   background: modalTab === "verdict" ? "var(--primary-soft)" : "transparent",
                   border: "none",
-                  borderRadius: "4px",
+                  borderRadius: "var(--r-sm)",
                   cursor: "pointer",
                 }}
               >
@@ -1253,7 +1253,7 @@ export function AdminSoftwareTable({
                   background: "var(--danger-soft)",
                   color: "var(--danger)",
                   border: "1px solid var(--danger)",
-                  borderRadius: "4px",
+                  borderRadius: "var(--r-sm)",
                   fontSize: "0.85rem",
                   marginBottom: "16px",
                 }}
@@ -1300,7 +1300,7 @@ export function AdminSoftwareTable({
                           background: "var(--surface-2)",
                           border: "1px solid var(--border)",
                           color: "var(--text)",
-                          borderRadius: "4px",
+                          borderRadius: "var(--r-sm)",
                         }}
                       />
                     </div>
@@ -1333,7 +1333,7 @@ export function AdminSoftwareTable({
                           background: "var(--surface-2)",
                           border: "1px solid var(--border)",
                           color: "var(--text)",
-                          borderRadius: "4px",
+                          borderRadius: "var(--r-sm)",
                         }}
                       />
                     </div>
@@ -1372,7 +1372,7 @@ export function AdminSoftwareTable({
                           background: "var(--surface-2)",
                           border: "1px solid var(--border)",
                           color: "var(--text)",
-                          borderRadius: "4px",
+                          borderRadius: "var(--r-sm)",
                         }}
                       >
                         {categories.map((c) => (
@@ -1411,7 +1411,7 @@ export function AdminSoftwareTable({
                           background: "var(--surface-2)",
                           border: "1px solid var(--border)",
                           color: "var(--text)",
-                          borderRadius: "4px",
+                          borderRadius: "var(--r-sm)",
                           textAlign: "center",
                           fontWeight: 700,
                         }}
@@ -1443,7 +1443,7 @@ export function AdminSoftwareTable({
                           background: "var(--surface-2)",
                           border: "1px solid var(--border)",
                           color: "var(--text)",
-                          borderRadius: "4px",
+                          borderRadius: "var(--r-sm)",
                         }}
                       >
                         <option value="PUBLISHED">PUBLISHED</option>
@@ -1485,7 +1485,7 @@ export function AdminSoftwareTable({
                           background: "var(--surface-2)",
                           border: "1px solid var(--border)",
                           color: "var(--text)",
-                          borderRadius: "4px",
+                          borderRadius: "var(--r-sm)",
                         }}
                       />
                     </div>
@@ -1517,7 +1517,7 @@ export function AdminSoftwareTable({
                           background: "var(--surface-2)",
                           border: "1px solid var(--border)",
                           color: "var(--text)",
-                          borderRadius: "4px",
+                          borderRadius: "var(--r-sm)",
                         }}
                       />
                     </div>
@@ -1549,7 +1549,7 @@ export function AdminSoftwareTable({
                         background: "var(--surface-2)",
                         border: "1px solid var(--border)",
                         color: "var(--text)",
-                        borderRadius: "4px",
+                        borderRadius: "var(--r-sm)",
                         fontFamily: "inherit",
                         fontSize: "0.875rem",
                       }}
@@ -1588,7 +1588,7 @@ export function AdminSoftwareTable({
                           background: "var(--surface-2)",
                           border: "1px solid var(--border)",
                           color: "var(--text)",
-                          borderRadius: "4px",
+                          borderRadius: "var(--r-sm)",
                           fontSize: "0.8rem",
                         }}
                       />
@@ -1634,7 +1634,7 @@ export function AdminSoftwareTable({
                           background: "var(--surface-2)",
                           border: "1px solid var(--border)",
                           color: "var(--text)",
-                          borderRadius: "4px",
+                          borderRadius: "var(--r-sm)",
                           fontSize: "0.8rem",
                         }}
                       />
@@ -1667,7 +1667,7 @@ export function AdminSoftwareTable({
                           background: "var(--surface-2)",
                           border: "1px solid var(--border)",
                           color: "var(--text)",
-                          borderRadius: "4px",
+                          borderRadius: "var(--r-sm)",
                           fontSize: "0.8rem",
                         }}
                       />
@@ -1686,7 +1686,7 @@ export function AdminSoftwareTable({
                       alignItems: "center",
                       background: "var(--surface-2)",
                       padding: "10px 14px",
-                      borderRadius: "6px",
+                      borderRadius: "var(--r-md)",
                       border: "1px solid var(--border)",
                       flexWrap: "wrap",
                       gap: "10px",
@@ -1771,7 +1771,7 @@ export function AdminSoftwareTable({
                         padding: "14px",
                         background: "var(--surface-2)",
                         border: "1px solid var(--primary)",
-                        borderRadius: "6px",
+                        borderRadius: "var(--r-md)",
                         display: "flex",
                         flexDirection: "column",
                         gap: "10px",
@@ -1821,7 +1821,7 @@ export function AdminSoftwareTable({
                                 background: "var(--surface)",
                                 border: "1px solid var(--border)",
                                 color: "var(--text)",
-                                borderRadius: "4px",
+                                borderRadius: "var(--r-sm)",
                                 fontSize: "0.8rem",
                               }}
                             >
@@ -1847,7 +1847,7 @@ export function AdminSoftwareTable({
                                 background: "var(--surface)",
                                 border: "1px solid var(--border)",
                                 color: "var(--text)",
-                                borderRadius: "4px",
+                                borderRadius: "var(--r-sm)",
                                 fontSize: "0.8rem",
                               }}
                             />
@@ -1876,7 +1876,7 @@ export function AdminSoftwareTable({
                               background: "var(--surface)",
                               border: "1px solid var(--border)",
                               color: "var(--text)",
-                              borderRadius: "4px",
+                              borderRadius: "var(--r-sm)",
                               fontSize: "0.8rem",
                             }}
                           />
@@ -1902,7 +1902,7 @@ export function AdminSoftwareTable({
                               background: "var(--surface)",
                               border: "1px solid var(--border)",
                               color: "var(--text)",
-                              borderRadius: "4px",
+                              borderRadius: "var(--r-sm)",
                               fontSize: "0.8rem",
                             }}
                           >
@@ -1937,7 +1937,7 @@ export function AdminSoftwareTable({
                               background: "var(--surface)",
                               border: "1px solid var(--border)",
                               color: "var(--text)",
-                              borderRadius: "4px",
+                              borderRadius: "var(--r-sm)",
                               fontSize: "0.8rem",
                             }}
                           />
@@ -1962,7 +1962,7 @@ export function AdminSoftwareTable({
                       overflowY: "auto",
                       border: "1px solid var(--border)",
                       background: "var(--surface)",
-                      borderRadius: "6px",
+                      borderRadius: "var(--r-md)",
                     }}
                   >
                     {checkpoints.length === 0 ? (
@@ -2071,7 +2071,7 @@ export function AdminSoftwareTable({
                                       border: "1px solid transparent",
                                       color: "var(--text)",
                                       fontWeight: 600,
-                                      borderRadius: "3px",
+                                      borderRadius: "var(--r-sm)",
                                     }}
                                     onFocus={(e) => {
                                       e.target.style.background = "var(--surface-2)";
@@ -2114,7 +2114,7 @@ export function AdminSoftwareTable({
                                       background: statusBg,
                                       color: statusColor,
                                       border: `1px solid ${statusColor}`,
-                                      borderRadius: "4px",
+                                      borderRadius: "var(--r-sm)",
                                       cursor: "pointer",
                                     }}
                                   >
@@ -2143,7 +2143,7 @@ export function AdminSoftwareTable({
                                       background: "var(--surface-2)",
                                       border: "1px solid var(--border)",
                                       color: "var(--text)",
-                                      borderRadius: "3px",
+                                      borderRadius: "var(--r-sm)",
                                     }}
                                   />
                                 </td>
@@ -2162,7 +2162,7 @@ export function AdminSoftwareTable({
                                       fontSize: "1rem",
                                       lineHeight: 1,
                                       padding: "4px 6px",
-                                      borderRadius: "4px",
+                                      borderRadius: "var(--r-sm)",
                                     }}
                                   >
                                     ✕
@@ -2214,7 +2214,7 @@ export function AdminSoftwareTable({
                         background: "var(--surface-2)",
                         border: "1px solid var(--border)",
                         color: "var(--text)",
-                        borderRadius: "4px",
+                        borderRadius: "var(--r-sm)",
                         fontFamily: "inherit",
                         fontSize: "0.82rem",
                         lineHeight: 1.5,
@@ -2249,7 +2249,7 @@ export function AdminSoftwareTable({
                         background: "var(--surface-2)",
                         border: "1px solid var(--border)",
                         color: "var(--text)",
-                        borderRadius: "4px",
+                        borderRadius: "var(--r-sm)",
                         fontFamily: "inherit",
                         fontSize: "0.82rem",
                         lineHeight: 1.5,
@@ -2322,7 +2322,7 @@ export function AdminSoftwareTable({
               padding: "24px",
               background: "var(--surface)",
               border: "1px solid var(--danger)",
-              borderRadius: "8px",
+              borderRadius: "var(--r-md)",
             }}
           >
             <span className="eyebrow" style={{ color: "var(--danger)" }}>

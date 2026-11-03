@@ -1,6 +1,6 @@
 import { prisma } from "../db";
 import { serializeForClient } from "../serialize-for-client";
-import { CommentStatus, Role, PublishStatus } from "@prisma/client";
+import { CommentStatus } from "@prisma/client";
 
 export async function getAdminDashboardStats() {
   const [

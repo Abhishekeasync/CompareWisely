@@ -1,12 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type CSSProperties } from "react";
-import type {
-  DynamicMatrixData,
-  DynamicMatrixColumn,
-  DynamicMatrixFeature,
-} from "@/lib/types/comparison";
+import { useState, type CSSProperties } from "react";
+import type { DynamicMatrixData } from "@/lib/types/comparison";
 import { ChevronIcon } from "@/components/icons";
 import { Money } from "@/components/money";
 import { CompareValueCell } from "./compare-value-cell";

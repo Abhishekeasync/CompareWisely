@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { calculateRecommendation } from "./services/recommendation.service";
-import { prisma } from "./db";
 
 test("recommendation.service: cloud services workflow selects Zoho Books", async () => {
   const result = await calculateRecommendation({

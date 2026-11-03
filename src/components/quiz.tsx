@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import type { RecommendationAnswersInput } from "@/lib/validations/recommendation";
 import type { RecommendationMatch, RequirementStatus } from "@/lib/types/recommendation";
-import { Money } from "./money";
 
 interface Option<T> {
   value: T;
@@ -134,9 +133,10 @@ export function Quiz() {
 
       setResult(json.data);
       window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Quiz submission error:", err);
-      setErrorMsg(err.message || "An unexpected error occurred while calculating your best fit.");
+      const message = err instanceof Error ? err.message : "An unexpected error occurred while calculating your best fit.";
+      setErrorMsg(message);
     } finally {
       setLoading(false);
     }

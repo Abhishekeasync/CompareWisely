@@ -2,12 +2,17 @@ import { PrismaClient, Role, PublishStatus, BillingCycle, FeatureDataType, Value
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
+const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD;
 
 async function main() {
+  if (!seedAdminPassword) {
+    throw new Error("SEED_ADMIN_PASSWORD must be set before running the database seed.");
+  }
+
   console.log("🌱 Starting CompareWisely database seed...");
 
   // 1. Seed Default Admin User
-  const adminPasswordHash = await bcrypt.hash("Admin@CompareWisely2026!", 12);
+  const adminPasswordHash = await bcrypt.hash(seedAdminPassword, 12);
   const admin = await prisma.user.upsert({
     where: { email: "admin@comparewisely.com" },
     update: {},
@@ -200,7 +205,18 @@ async function main() {
   for (const item of productsData) {
     const prod = await prisma.softwareProduct.upsert({
       where: { slug: item.slug },
-      update: {},
+      update: {
+        // Keep these fields current on re-runs without overwriting admin-managed fields.
+        tagline: item.tagline,
+        description: item.description,
+        websiteUrl: item.websiteUrl,
+        trialUrl: item.trialUrl,
+        pros: item.pros,
+        cons: item.cons,
+        status: PublishStatus.PUBLISHED,
+        verifiedAt: new Date(),
+        verifiedById: admin.id,
+      },
       create: {
         slug: item.slug,
         name: item.name,
@@ -217,21 +233,29 @@ async function main() {
         status: PublishStatus.PUBLISHED,
         verifiedAt: new Date(),
         verifiedById: admin.id,
-        pricingPlans: {
-          create: {
-            planName: "Standard Base Plan",
-            displayPrice: item.startingPrice,
-            priceAmount: item.priceAmount,
-            billingCycle: item.billingCycle,
-            currency: "INR",
-            isStartingPrice: true,
-            verificationSourceUrl: item.verificationSourceUrl,
-            verifiedAt: new Date(),
-          },
-        },
       },
     });
     seededProducts[item.slug] = prod.id;
+    // Idempotently ensure the starting-price plan exists (nested create inside upsert.create
+    // is skipped when the software_product row already exists).
+    const existingPlan = await prisma.pricingPlan.findFirst({
+      where: { softwareId: prod.id, isStartingPrice: true },
+    });
+    if (!existingPlan) {
+      await prisma.pricingPlan.create({
+        data: {
+          softwareId: prod.id,
+          planName: "Standard Base Plan",
+          displayPrice: item.startingPrice,
+          priceAmount: item.priceAmount,
+          billingCycle: item.billingCycle,
+          currency: "INR",
+          isStartingPrice: true,
+          verificationSourceUrl: item.verificationSourceUrl,
+          verifiedAt: new Date(),
+        },
+      });
+    }
   }
   console.log("✅ Seeded 7 Software Products & Pricing Plans");
 
@@ -442,7 +466,9 @@ async function main() {
 
   const comparison = await prisma.comparisonPage.upsert({
     where: { slug: "tally-prime-vs-zoho-books" },
-    update: {},
+    update: {
+      isPublished: true,
+    },
     create: {
       slug: "tally-prime-vs-zoho-books",
       title: "Tally Prime vs Zoho Books",
@@ -451,20 +477,28 @@ async function main() {
       verdictSummary: "Choose Tally Prime if your operations rely on an offline desktop workstation, complex multi-godown stock, and your Chartered Accountant prefers keyboard shortcuts. Choose Zoho Books if your team needs remote cloud access, automated bank reconciliation with Indian banks, and effortless mobile billing.",
       isPublished: true,
       publishedAt: new Date(),
-      comparisonProducts: {
-        create: [
-          { softwareId: tallyId, displayOrder: 1 },
-          { softwareId: zohoId, displayOrder: 2 },
-        ],
-      },
     },
+  });
+  // Idempotently ensure comparison-product relationships exist (upsert.create skips nested
+  // creates if the page row already existed — so we always upsert them explicitly).
+  await prisma.comparisonProduct.upsert({
+    where: { comparisonPageId_softwareId: { comparisonPageId: comparison.id, softwareId: tallyId } },
+    update: { displayOrder: 1 },
+    create: { comparisonPageId: comparison.id, softwareId: tallyId, displayOrder: 1 },
+  });
+  await prisma.comparisonProduct.upsert({
+    where: { comparisonPageId_softwareId: { comparisonPageId: comparison.id, softwareId: zohoId } },
+    update: { displayOrder: 2 },
+    create: { comparisonPageId: comparison.id, softwareId: zohoId, displayOrder: 2 },
   });
   console.log("✅ Seeded Comparison Page:", comparison.slug);
 
   const easyncId = seededProducts["easync-books"];
   const easyncVsZoho = await prisma.comparisonPage.upsert({
     where: { slug: "easync-books-vs-zoho-books" },
-    update: {},
+    update: {
+      isPublished: true,
+    },
     create: {
       slug: "easync-books-vs-zoho-books",
       title: "Easync Books vs Zoho Books",
@@ -475,18 +509,23 @@ async function main() {
         "Choose Easync Books if you want India-first cloud books with GST returns included on every paid plan and CA-oriented multi-entity tiers with GSTR-2B reconciliation. Choose Zoho Books if automated bank feeds, a broader integration ecosystem, and mature mobile apps matter more than multi-client entity packaging.",
       isPublished: true,
       publishedAt: new Date(),
-      comparisonProducts: {
-        create: [
-          { softwareId: easyncId, displayOrder: 1 },
-          { softwareId: zohoId, displayOrder: 2 },
-        ],
-      },
     },
+  });
+  // Idempotently ensure comparison-product relationships exist.
+  await prisma.comparisonProduct.upsert({
+    where: { comparisonPageId_softwareId: { comparisonPageId: easyncVsZoho.id, softwareId: easyncId } },
+    update: { displayOrder: 1 },
+    create: { comparisonPageId: easyncVsZoho.id, softwareId: easyncId, displayOrder: 1 },
+  });
+  await prisma.comparisonProduct.upsert({
+    where: { comparisonPageId_softwareId: { comparisonPageId: easyncVsZoho.id, softwareId: zohoId } },
+    update: { displayOrder: 2 },
+    create: { comparisonPageId: easyncVsZoho.id, softwareId: zohoId, displayOrder: 2 },
   });
   console.log("✅ Seeded Comparison Page:", easyncVsZoho.slug);
 
   // 7. Seed Editorial Article
-  await prisma.article.upsert({
+  const article = await prisma.article.upsert({
     where: { slug: "gstr-2b-reconciliation" },
     update: {},
     create: {
@@ -499,11 +538,17 @@ async function main() {
       authorId: admin.id,
       isPublished: true,
       publishedAt: new Date(),
-      tags: {
-        create: [{ tagName: "GST" }, { tagName: "Reconciliation" }, { tagName: "Compliance" }],
-      },
     },
   });
+  // Idempotently ensure article tags exist (nested create inside upsert.create is skipped
+  // when the article row already exists).
+  for (const tagName of ["GST", "Reconciliation", "Compliance"]) {
+    await prisma.articleTag.upsert({
+      where: { articleId_tagName: { articleId: article.id, tagName } },
+      update: {},
+      create: { articleId: article.id, tagName },
+    });
+  }
   console.log("✅ Seeded Editorial Article");
 
   console.log("🎉 Database seed completed successfully!");

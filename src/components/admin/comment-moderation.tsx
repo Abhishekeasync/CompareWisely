@@ -63,7 +63,7 @@ export function CommentModerationList({ initialComments }: CommentModerationList
 
       {filteredComments.length === 0 ? (
         <div className="panel card--pad" style={{ padding: "32px", textAlign: "center" }}>
-          <p className="tiny muted">No comments found matching filter "{filter}".</p>
+          <p className="tiny muted">No comments found matching filter &ldquo;{filter}&rdquo;.</p>
         </div>
       ) : (
         <div className="stack gap-16">

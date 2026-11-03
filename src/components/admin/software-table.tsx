@@ -100,11 +100,14 @@ export function AdminSoftwareTable({
   const [list, setList] = useState<SoftwareProduct[]>(
     initialSoftwareList || fallbackSoftwareList || []
   );
+  const [prevInitial, setPrevInitial] = useState(initialSoftwareList ?? fallbackSoftwareList);
+  const currentInitial = initialSoftwareList ?? fallbackSoftwareList;
+  if (currentInitial !== prevInitial) {
+    setPrevInitial(currentInitial);
+    setList(currentInitial || []);
+  }
 
-  useEffect(() => {
-    if (initialSoftwareList) setList(initialSoftwareList);
-    else if (fallbackSoftwareList) setList(fallbackSoftwareList);
-  }, [initialSoftwareList, fallbackSoftwareList]);
+  const [nowTimestamp] = useState(() => Date.now());
 
   // Modals & Active state
   const [activeModalSoftware, setActiveModalSoftware] = useState<SoftwareProduct | null>(null);
@@ -539,7 +542,7 @@ export function AdminSoftwareTable({
     const stale = list.filter(
       (sw) =>
         !sw.verifiedAt ||
-        new Date(sw.verifiedAt).getTime() < Date.now() - 90 * 24 * 60 * 60 * 1000
+        new Date(sw.verifiedAt).getTime() < nowTimestamp - 90 * 24 * 60 * 60 * 1000
     ).length;
     return { total, published, draft, stale };
   }, [list]);
@@ -816,7 +819,7 @@ export function AdminSoftwareTable({
                   sw.pricingPlans?.find((p) => p.isStartingPrice) || sw.pricingPlans?.[0];
                 const isStale =
                   !sw.verifiedAt ||
-                  new Date(sw.verifiedAt).getTime() < Date.now() - 90 * 24 * 60 * 60 * 1000;
+                  new Date(sw.verifiedAt).getTime() < nowTimestamp - 90 * 24 * 60 * 60 * 1000;
                 const isLoading = actionLoadingId === sw.id;
                 const cpCount = sw.featureValues?.length || 0;
 

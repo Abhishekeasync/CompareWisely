@@ -1,6 +1,9 @@
 import { prisma } from "../db";
 import { ArticleType, CommentStatus, Prisma } from "@prisma/client";
-import type { CommentSubmitInput } from "../validations/content";
+import type { z } from "zod";
+import type { CommentSubmitInput, articleInputSchema } from "../validations/content";
+
+type ArticleInput = z.infer<typeof articleInputSchema>;
 import {
   articleImageUrlsForStorage,
   featuredImageFromList,
@@ -274,7 +277,7 @@ export async function getAllArticlesForAdmin() {
   });
 }
 
-export async function createArticle(input: any, authorId: number) {
+export async function createArticle(input: ArticleInput, authorId: number) {
   const {
     title, slug, excerpt, content, articleType, categoryId, isPublished, tags,
     imageUrls, featuredImageUrl, videoUrl, metaTitle, metaDescription, canonicalUrl,
@@ -312,7 +315,7 @@ export async function createArticle(input: any, authorId: number) {
   return article;
 }
 
-export async function updateArticle(id: number, input: any) {
+export async function updateArticle(id: number, input: Partial<ArticleInput>) {
   const {
     title, slug, excerpt, content, articleType, categoryId, isPublished, tags,
     imageUrls, featuredImageUrl, videoUrl, metaTitle, metaDescription, canonicalUrl,

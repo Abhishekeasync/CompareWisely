@@ -33,9 +33,9 @@ function UnsubscribeContent() {
       }
 
       setStatus("success");
-    } catch (err: any) {
+    } catch (err) {
       setStatus("error");
-      setErrorMessage(err.message || "An unexpected error occurred.");
+      setErrorMessage(err instanceof Error ? err.message : "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }

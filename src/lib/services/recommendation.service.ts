@@ -6,10 +6,21 @@ import type {
   RequirementAuditItem,
   RequirementStatus,
 } from "@/lib/types/recommendation";
+import type { Prisma } from "@prisma/client";
 import { ValueKind } from "@prisma/client";
 
+type ProductWithFeatures = Prisma.SoftwareProductGetPayload<{
+  include: {
+    category: true;
+    pricingPlans: true;
+    featureValues: {
+      include: { feature: true };
+    };
+  };
+}>;
+
 interface ScoredSoftware {
-  product: any;
+  product: ProductWithFeatures;
   score: number;
   matchReasons: string[];
   tradeOffs: string[];
@@ -128,7 +139,6 @@ export async function calculateRecommendation(
     }
 
     // 4. User Seats (Weight: 10)
-    const isMultiUser = answers.userSeats !== "single";
     if (answers.userSeats === "single") {
       if (product.slug === "vyapar" || product.slug === "tally-prime") {
         addDimension(10, 1.0);

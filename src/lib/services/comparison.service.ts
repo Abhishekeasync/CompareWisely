@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import type { ValueKind } from "@prisma/client";
 
 // Re-export shared types so server-side code can still import from here
 export type {

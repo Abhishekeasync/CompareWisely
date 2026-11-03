@@ -36,10 +36,10 @@ export function NewsletterSignup() {
       });
       setEmail("");
       setConsent(false);
-    } catch (err: any) {
+    } catch (err) {
       setMessage({
         type: "error",
-        text: err.message || "An unexpected error occurred. Please try again.",
+        text: err instanceof Error ? err.message : "An unexpected error occurred. Please try again.",
       });
     } finally {
       setLoading(false);

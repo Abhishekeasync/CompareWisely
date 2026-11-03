@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DynamicMatrixData } from "@/lib/types/comparison";
 import { PageHead } from "@/components/page-head";
 import { ChevronIcon } from "@/components/icons";
@@ -40,7 +40,6 @@ interface PopularComparison {
 export function CompareWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const matrixRef = useRef<HTMLDivElement>(null);
 
   // Parse selected product slugs from the URL
   const selectedSlugs = useMemo(() => {
@@ -90,19 +89,27 @@ export function CompareWorkspace() {
   // Fetch the comparison matrix whenever selectedSlugs changes
   useEffect(() => {
     if (selectedSlugs.length < MIN_COMPARE_PRODUCTS) {
-      setMatrix(null);
       return;
     }
 
-    setLoading(true);
+    let isCurrent = true;
     fetch(`/api/v1/compare/matrix?ids=${selectedSlugs.join(",")}`)
       .then((res) => res.json())
       .then((json) => {
+        if (!isCurrent) return;
         if (json.success) setMatrix(json.data);
         else setMatrix(null);
       })
-      .catch(() => setMatrix(null))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (isCurrent) setMatrix(null);
+      })
+      .finally(() => {
+        if (isCurrent) setLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
   }, [selectedSlugs]);
 
   const syncUrl = useCallback(
@@ -189,14 +196,15 @@ export function CompareWorkspace() {
   }
 
   function loadPopular(slugs: string[]) {
+    setLoading(true);
     updateSelection(slugs.slice(0, MAX_COMPARE_PRODUCTS));
     requestAnimationFrame(() =>
-      matrixRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      document.getElementById("compare-matrix")?.scrollIntoView({ behavior: "smooth", block: "start" }),
     );
   }
 
   function scrollToMatrix() {
-    matrixRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("compare-matrix")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   const slots = Array.from(
@@ -425,7 +433,7 @@ export function CompareWorkspace() {
             </p>
           </div>
 
-          <div ref={matrixRef} className="compare-results">
+          <div id="compare-matrix" className="compare-results">
             {loading ? (
               <p className="compare-empty muted" role="status">
                 Loading comparison matrix…

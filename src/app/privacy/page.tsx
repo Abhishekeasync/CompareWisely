@@ -35,7 +35,7 @@ export default function PrivacyPolicyPage() {
             </h2>
             <ul className="stack gap-8" style={{ paddingLeft: "20px", marginBottom: "16px" }}>
               <li>
-                <b>Questionnaire Inputs:</b> When you use the "Find Your Best Fit" wizard, we process your business scale, industry, seat count, and required features to generate real-time match scores. These answers are evaluated in-session.
+                <b>Questionnaire Inputs:</b> When you use the &ldquo;Find Your Best Fit&rdquo; wizard, we process your business scale, industry, seat count, and required features to generate real-time match scores. These answers are evaluated in-session.
               </li>
               <li>
                 <b>Newsletter Subscription:</b> If you subscribe to our monthly briefing, we collect your email address and record explicit timestamped consent. Every dispatch includes a one-click, verified unsubscribe link.

@@ -91,15 +91,18 @@ export function AsterDiceHeading({
     );
   }
 
-  let charOffset = 0;
+  const wordOffsets = words.reduce<number[]>((acc, word, i) => {
+    if (i === 0) return [0];
+    acc.push(acc[i - 1] + words[i - 1].length);
+    return acc;
+  }, []);
 
   return (
     <h2 id={id} className={className} ref={rootRef}>
       <span className="sr-only">{text}</span>
       <span className="aster-dice" aria-hidden="true">
         {words.map((word, wordIndex) => {
-          const wordStart = charOffset;
-          charOffset += word.length;
+          const wordStart = wordOffsets[wordIndex] ?? 0;
 
           return (
             <span key={`${word}-${wordIndex}`} className="aster-dice__word">

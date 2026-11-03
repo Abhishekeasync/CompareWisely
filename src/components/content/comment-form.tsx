@@ -41,10 +41,10 @@ export function CommentForm({ articleSlug }: CommentFormProps) {
       setAuthorName("");
       setAuthorEmail("");
       setContent("");
-    } catch (err: any) {
+    } catch (err) {
       setFeedback({
         type: "error",
-        text: err.message || "An unexpected error occurred. Please try again.",
+        text: err instanceof Error ? err.message : "An unexpected error occurred. Please try again.",
       });
     } finally {
       setSubmitting(false);

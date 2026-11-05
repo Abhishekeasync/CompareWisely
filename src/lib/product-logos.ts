@@ -10,3 +10,19 @@ export const PRODUCT_LOGOS = {
 } as const;
 
 export type ProductLogoKey = keyof typeof PRODUCT_LOGOS;
+
+export function softwareLogoKeyFromSlug(slug: string): ProductLogoKey | null {
+  const key = slug.split("-")[0] as ProductLogoKey;
+  return key in PRODUCT_LOGOS ? key : null;
+}
+
+export function resolveSoftwareProductLogo(slug: string, logoUrl?: string | null): string | null {
+  const trimmed = logoUrl?.trim();
+  if (trimmed) return trimmed;
+  const key = softwareLogoKeyFromSlug(slug);
+  return key ? PRODUCT_LOGOS[key] : null;
+}
+
+export function softwareSwClassFromSlug(slug: string): string {
+  return slug.split("-")[0] ?? "";
+}

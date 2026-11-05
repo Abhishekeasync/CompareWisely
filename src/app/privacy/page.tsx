@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHead } from "@/components/page-head";
+import { SITE_NAME, SITE_PRIVACY_EMAIL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — CompareWisely",
-  description: "Privacy Policy, data collection practices, and cookie disclosures for CompareWisely.",
+  title: `Privacy Policy — ${SITE_NAME}`,
+  description: `Privacy Policy, data collection practices, and cookie disclosures for ${SITE_NAME}.`,
 };
 
 export default function PrivacyPolicyPage() {
@@ -14,7 +15,7 @@ export default function PrivacyPolicyPage() {
         current="Privacy Policy"
         eyebrow="Legal &amp; Transparency"
         title="Privacy Policy"
-        lead="How CompareWisely collects, protects, and respects your personal data and business evaluation inputs."
+        lead={`How ${SITE_NAME} collects, protects, and respects your personal data and business evaluation inputs.`}
       />
       <section className="section">
         <div className="container" style={{ maxWidth: "800px" }}>
@@ -66,7 +67,7 @@ export default function PrivacyPolicyPage() {
               5. Data Retention &amp; Rights
             </h2>
             <p>
-              You have the right to request deletion or modification of your newsletter subscription or posted comments at any time. To exercise these rights, click the unsubscribe link in any email or email us at <code>privacy@comparewisely.com</code>.
+              You have the right to request deletion or modification of your newsletter subscription or posted comments at any time. To exercise these rights, click the unsubscribe link in any email or email us at <code>{SITE_PRIVACY_EMAIL}</code>.
             </p>
 
             <div className="row gap-12" style={{ marginTop: "32px", borderTop: "1px solid var(--border)", paddingTop: "20px" }}>

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { LinkedInIcon, XIcon, YouTubeIcon } from "./icons";
+import { SiteBrand } from "./site-brand";
+import { SITE_CONTACT_EMAIL, SITE_NAME } from "@/lib/site";
 
 export function SiteFooter({ year }: { year: number }) {
 
@@ -7,10 +9,8 @@ export function SiteFooter({ year }: { year: number }) {
     <footer className="footer">
       <div className="container">
         <div className="footer__grid">
-          <div>
-            <Link className="brand" href="/">
-              CompareWisely
-            </Link>
+          <div className="footer__identity">
+            <SiteBrand tone="footer" />
             <p className="muted tiny brand-blurb">
               India&apos;s independent comparison platform for ERP and accounting software. Built for MSMEs, CAs and finance teams.
             </p>
@@ -48,12 +48,12 @@ export function SiteFooter({ year }: { year: number }) {
         </div>
         <div className="footer__bottom">
           <p className="disclaimer">
-            <b>Disclaimer:</b> Information is for general guidance only. Verify prices and rules with the official source before deciding. CompareWisely is not affiliated with the software vendors reviewed. © {year} CompareWisely.
+            <b>Disclaimer:</b> Information is for general guidance only. Verify prices and rules with the official source before deciding. {SITE_NAME} is not affiliated with the software vendors reviewed. © {year} {SITE_NAME}.
           </p>
           <div className="row gap-16 tiny">
             <Link href="/privacy">Privacy</Link>
             <Link href="/terms">Terms</Link>
-            <a href="mailto:contact@comparewisely.com">Contact</a>
+            <a href={`mailto:${SITE_CONTACT_EMAIL}`}>Contact</a>
           </div>
         </div>
       </div>

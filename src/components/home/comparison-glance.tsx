@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronIcon } from "@/components/icons";
 import { Money } from "@/components/money";
 import { ComparisonGlanceHeading, MacFrame } from "@/components/home/mac-frame";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 import type {
   ComparisonGlance,
   ComparisonGlanceProduct,
@@ -70,7 +71,10 @@ export function ComparisonGlanceMatrix({
   }
 
   return (
-    <div className={`comparison-glance__matrix-wrap${scrollable ? " comparison-glance__matrix-wrap--scroll" : ""}`}>
+    <div
+      className={`comparison-glance__matrix-wrap${scrollable ? " comparison-glance__matrix-wrap--scroll" : ""}`}
+      data-lenis-prevent={scrollable ? "" : undefined}
+    >
       <table className="comparison-glance__matrix">
         <caption className="sr-only">
           {title}: {products.map((product) => product.name).join(" versus ")}
@@ -102,7 +106,10 @@ export function ComparisonGlanceMatrix({
               </th>
             </tr>
             {section.rows.map((row) => (
-              <tr key={row.id}>
+              <tr
+                key={row.id}
+                className={row.code === "starting_price" ? "comparison-glance__row--starting-price" : undefined}
+              >
                 <th scope="row">{row.name}</th>
                 {row.values.map((value, index) => (
                   <td
@@ -126,7 +133,7 @@ export function ComparisonGlanceMatrix({
 
 function comparisonPath(href: string) {
   try {
-    return new URL(href, "https://comparewisely.in").pathname;
+    return new URL(href, SITE_URL).pathname;
   } catch {
     return href;
   }
@@ -147,7 +154,7 @@ export function ComparisonGlanceHero({ data }: { data: ComparisonGlance }) {
         href={data.href}
         aria-label={`Open the full ${data.title} comparison`}
       >
-        <MacFrame title="CompareWisely — Matrix" location={path}>
+        <MacFrame title={`${SITE_NAME} — Matrix`} location={path}>
           <ComparisonGlanceMatrix title={data.title} products={data.products} sections={data.sections} scrollable />
           <span className="path-card__go comparison-glance__cta">
             Open the comparison

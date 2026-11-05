@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHead } from "@/components/page-head";
+import { SITE_ADMIN_EMAIL } from "@/lib/site";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@comparewisely.com");
+  const [email, setEmail] = useState(SITE_ADMIN_EMAIL);
   const [password, setPassword] = useState("Admin@CompareWisely2026!");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);

@@ -24,6 +24,7 @@ export type GlanceSourceProduct = {
 
 export type ComparisonGlanceRow = {
   id: string;
+  code: string;
   name: string;
   values: string[];
   differs: boolean;
@@ -93,6 +94,7 @@ export function buildComparisonGlanceSections(
           values.some((value) => value.length > 22 || (value.includes(" ") && value.length > 14));
         return {
           id: String(feature.id),
+          code: feature.code,
           name: feature.name,
           values,
           differs: Boolean(feature.isDifferent),

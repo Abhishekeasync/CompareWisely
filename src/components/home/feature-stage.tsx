@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useLenis } from "lenis/react";
 import { ChevronIcon } from "@/components/icons";
 import { AsterDiceHeading } from "@/components/home/aster-dice-heading";
 import {
@@ -122,12 +123,12 @@ function FeatureVisual({ feature, comparison }: { feature: Feature; comparison: 
   }
 
   return (
-    <div className="feat-card">
-      <h3>What the quiz asks</h3>
-      <ol className="feat-asks">
+    <div className="feat-card feat-card--quiz">
+      <h3 id="quiz-asks-heading">What the quiz asks</h3>
+      <ol className="feat-asks" aria-labelledby="quiz-asks-heading">
         {QUIZ_ASKS.map(([name, detail], index) => (
           <li key={name}>
-            <span>{String(index + 1).padStart(2, "0")}</span>
+            <span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
             <div>
               <b>{name}</b>
               <p>{detail}</p>
@@ -142,9 +143,13 @@ function FeatureVisual({ feature, comparison }: { feature: Feature; comparison: 
 export function FeatureStage({ comparison }: { comparison: ComparisonGlance }) {
   const features = featuresFor(comparison);
   const trackRef = useRef<HTMLDivElement>(null);
+  const railRefs = useRef<(HTMLElement | null)[]>([]);
+  const metricsRef = useRef<{ scrollable: number; origin: number }>({ scrollable: 0, origin: 0 });
   const [live, setLive] = useState(false);
   const [active, setActive] = useState(0);
   const [segment, setSegment] = useState(0);
+
+  const lenis = useLenis();
 
   useLayoutEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -159,46 +164,86 @@ export function FeatureStage({ comparison }: { comparison: ComparisonGlance }) {
     };
   }, []);
 
+  const updateMetrics = useCallback(() => {
+    if (!trackRef.current) return;
+    const { scrollable, origin } = stageRange(trackRef.current);
+    metricsRef.current = { scrollable, origin };
+  }, []);
+
+  const syncScroll = useCallback(
+    (currentY: number) => {
+      if (!live) return;
+      const { scrollable, origin } = metricsRef.current;
+      const passed = Math.min(Math.max(currentY - origin, 0), scrollable);
+      const ratio = scrollable <= 0 ? 0 : passed / scrollable;
+      const scaled = ratio * features.length;
+      const index = Math.min(features.length - 1, Math.floor(scaled));
+      const local = index === features.length - 1 ? 1 : scaled - index;
+
+      // Direct DOM update for subpixel rail filling without React re-render:
+      railRefs.current.forEach((rail, idx) => {
+        if (!rail) return;
+        let fill = 0;
+        if (idx < index) fill = 1;
+        else if (idx === index) fill = Math.min(1, local);
+        rail.style.transform = `scaleY(${fill})`;
+      });
+
+      // Threshold-gated React state update for active section:
+      setActive((prev) => (prev !== index ? index : prev));
+      setSegment(local);
+    },
+    [live, features.length],
+  );
+
+  // Synchronize with Lenis scroll
+  useLenis((l) => {
+    syncScroll(l.scroll);
+  });
+
   useLayoutEffect(() => {
     if (!live) return;
     const track = trackRef.current;
     if (!track) return;
 
+    updateMetrics();
+
     let frame = 0;
-    const measure = () => {
-      frame = 0;
-      const { scrollable, passed } = stageRange(track);
-      const ratio = scrollable <= 0 ? 0 : passed / scrollable;
-      const scaled = ratio * features.length;
-      const index = Math.min(features.length - 1, Math.floor(scaled));
-      const local = index === features.length - 1 ? 1 : scaled - index;
-      setActive(index);
-      setSegment(local);
-    };
     const onScroll = () => {
       if (frame) return;
-      frame = window.requestAnimationFrame(measure);
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        syncScroll(window.scrollY);
+      });
     };
 
-    measure();
+    const onResize = () => {
+      updateMetrics();
+      syncScroll(window.scrollY);
+    };
+
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    window.addEventListener("resize", onResize);
     return () => {
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("resize", onResize);
       if (frame) window.cancelAnimationFrame(frame);
     };
-  }, [live, features.length]);
+  }, [live, updateMetrics, syncScroll]);
 
   function select(index: number) {
     if (!live || !trackRef.current) {
       setActive(index);
       return;
     }
-    const track = trackRef.current;
-    const { scrollable, origin } = stageRange(track);
+    updateMetrics();
+    const { scrollable, origin } = metricsRef.current;
     const target = origin + (scrollable * (index + 0.04)) / features.length;
-    window.scrollTo({ top: target, behavior: "smooth" });
+    if (lenis) {
+      lenis.scrollTo(target, { duration: 0.9 });
+    } else {
+      window.scrollTo({ top: target, behavior: "smooth" });
+    }
   }
 
   function fillFor(index: number) {
@@ -221,7 +266,12 @@ export function FeatureStage({ comparison }: { comparison: ComparisonGlance }) {
               {features.map((feature, index) => (
                 <li key={feature.id} className={`feat-stage__item${index === active ? " is-active" : ""}`}>
                   <span className="feat-stage__rail" aria-hidden="true">
-                    <i style={{ transform: `scaleY(${fillFor(index)})` }} />
+                    <i
+                      ref={(el) => {
+                        railRefs.current[index] = el;
+                      }}
+                      style={{ transform: `scaleY(${fillFor(index)})` }}
+                    />
                   </span>
                   <button
                     type="button"

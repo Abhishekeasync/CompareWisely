@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import { useLenis } from "lenis/react";
 import { MobileTabBar } from "./mobile-tab-bar";
 import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
@@ -13,13 +14,21 @@ const MobileDrawer = dynamic(
 
 export function SiteShell({ year, children }: { year: number; children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const lenis = useLenis();
 
   useEffect(() => {
-    document.body.style.overflow = drawerOpen ? "hidden" : "";
+    if (drawerOpen) {
+      lenis?.stop();
+      document.body.style.overflow = "hidden";
+    } else {
+      lenis?.start();
+      document.body.style.overflow = "";
+    }
     return () => {
+      lenis?.start();
       document.body.style.overflow = "";
     };
-  }, [drawerOpen]);
+  }, [drawerOpen, lenis]);
 
   return (
     <>

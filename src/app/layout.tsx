@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Newsreader, Public_Sans } from "next/font/google";
 import { SiteShell } from "@/components/site-shell";
+import { SmoothScrollProvider } from "@/components/providers/smooth-scroll-provider";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const display = Newsreader({
@@ -26,9 +28,10 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "CompareWisely",
-    template: "%s · CompareWisely",
+    default: SITE_NAME,
+    template: `%s · ${SITE_NAME}`,
   },
   description: "India's independent comparison platform for ERP and accounting software.",
 };
@@ -41,7 +44,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" data-theme="light" className={`${display.variable} ${ui.variable} ${mono.variable}`} suppressHydrationWarning>
       <body>
-        <SiteShell year={2026}>{children}</SiteShell>
+        <SmoothScrollProvider>
+          <SiteShell year={2026}>{children}</SiteShell>
+        </SmoothScrollProvider>
       </body>
     </html>
   );

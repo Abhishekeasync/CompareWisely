@@ -1,5 +1,6 @@
 import { PrismaClient, Role, PublishStatus, BillingCycle, FeatureDataType, ValueKind, ArticleType } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { SITE_ADMIN_EMAIL } from "../src/lib/site";
 
 const prisma = new PrismaClient();
 const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD;
@@ -14,10 +15,10 @@ async function main() {
   // 1. Seed Default Admin User
   const adminPasswordHash = await bcrypt.hash(seedAdminPassword, 12);
   const admin = await prisma.user.upsert({
-    where: { email: "admin@comparewisely.com" },
+    where: { email: SITE_ADMIN_EMAIL },
     update: {},
     create: {
-      email: "admin@comparewisely.com",
+      email: SITE_ADMIN_EMAIL,
       passwordHash: adminPasswordHash,
       name: "CompareWisely Editorial Lead",
       role: Role.ADMIN,

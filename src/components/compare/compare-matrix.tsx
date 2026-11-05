@@ -6,6 +6,7 @@ import type { DynamicMatrixData } from "@/lib/types/comparison";
 import { ChevronIcon } from "@/components/icons";
 import { Money } from "@/components/money";
 import { CompareValueCell } from "./compare-value-cell";
+import { useCompareMatrixLenis } from "./use-compare-matrix-lenis";
 
 type Props = {
   matrix: DynamicMatrixData;
@@ -23,24 +24,16 @@ export function CompareMatrix({ matrix, onRemove, onMove, showControls = true }:
   if (columns.length < 2) return null;
 
   const colCount = columns.length;
+  const wrapRef = useCompareMatrixLenis([colCount, categories, diffsOnly, collapsed]);
 
   return (
     <div
+      ref={wrapRef}
       className="compare-matrix-wrap"
       style={{ "--compare-cols": colCount } as CSSProperties}
     >
       {/* Matrix Controls Bar */}
-      <div
-        className="row between"
-        style={{
-          padding: "12px 16px",
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          borderBottom: "none",
-          flexWrap: "wrap",
-          gap: "12px",
-        }}
-      >
+      <div className="compare-matrix__toolbar row between">
         <div className="row gap-8">
           <button
             type="button"
@@ -50,13 +43,13 @@ export function CompareMatrix({ matrix, onRemove, onMove, showControls = true }:
           >
             {diffsOnly ? "✓ Showing Differences Only" : "Show Differences Only"}
           </button>
-          <span className="tiny muted" style={{ display: "inline-flex", alignItems: "center" }}>
+          <span className="tiny muted compare-matrix__toolbar-hint">
             {diffsOnly
               ? "Hiding rows where all products are identical"
               : "Comparing all standard capabilities"}
           </span>
         </div>
-        <span className="tiny muted">
+        <span className="tiny muted compare-matrix__toolbar-tip">
           Tip: Pin or reorder columns to compare side-by-side
         </span>
       </div>
@@ -157,7 +150,11 @@ export function CompareMatrix({ matrix, onRemove, onMove, showControls = true }:
                     </div>
                   ) : (
                     features.map((feat) => (
-                      <div key={feat.id} className="vs__row" role="row">
+                      <div
+                        key={feat.id}
+                        className={`vs__row${feat.code === "starting_price" ? " vs__row--starting-price" : ""}`}
+                        role="row"
+                      >
                         <div className="vs__label" role="rowheader">
                           {feat.name}
                           {feat.isDifferent ? (

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useLenis } from "lenis/react";
 
 export function FeatureStepJump({
   index,
@@ -11,6 +12,8 @@ export function FeatureStepJump({
   total: number;
   children: ReactNode;
 }) {
+  const lenis = useLenis();
+
   return (
     <button
       type="button"
@@ -20,18 +23,30 @@ export function FeatureStepJump({
         const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         const wide = window.matchMedia("(min-width: 900px) and (min-height: 700px)").matches;
         if (!(track instanceof HTMLElement) || !wide || reduce) {
-          document.getElementById(`feature-step-${index}`)?.scrollIntoView({
-            block: "start",
-            behavior: reduce ? "auto" : "smooth",
-          });
+          const targetEl = document.getElementById(`feature-step-${index}`);
+          if (targetEl) {
+            if (lenis && !reduce) {
+              lenis.scrollTo(targetEl, { duration: 0.9 });
+            } else {
+              targetEl.scrollIntoView({
+                block: "start",
+                behavior: reduce ? "auto" : "smooth",
+              });
+            }
+          }
           return;
         }
         const scrollable = Math.max(0, track.offsetHeight - window.innerHeight);
         const top = track.getBoundingClientRect().top + window.scrollY;
-        window.scrollTo({
-          top: top + (scrollable * (index + 0.12)) / total,
-          behavior: "smooth",
-        });
+        const targetPos = top + (scrollable * (index + 0.12)) / total;
+        if (lenis && !reduce) {
+          lenis.scrollTo(targetPos, { duration: 0.9 });
+        } else {
+          window.scrollTo({
+            top: targetPos,
+            behavior: reduce ? "auto" : "smooth",
+          });
+        }
       }}
     >
       {children}

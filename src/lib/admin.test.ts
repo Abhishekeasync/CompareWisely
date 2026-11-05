@@ -10,22 +10,23 @@ import {
   getAuditLogs,
 } from "./services/admin.service";
 import { CommentStatus } from "@prisma/client";
+import { SITE_ADMIN_EMAIL } from "./site";
 
 test("auth.service: authenticateUser authenticates seeded admin and denies bad password", async () => {
   // Correct password
-  const admin = await authenticateUser("admin@comparewisely.com", "Admin@CompareWisely2026!");
+  const admin = await authenticateUser(SITE_ADMIN_EMAIL, "Admin@CompareWisely2026!");
   assert.ok(admin, "Admin user should authenticate successfully");
   assert.equal(admin?.role, "ADMIN");
 
   // Incorrect password
-  const badAuth = await authenticateUser("admin@comparewisely.com", "WrongPassword123!");
+  const badAuth = await authenticateUser(SITE_ADMIN_EMAIL, "WrongPassword123!");
   assert.equal(badAuth, null, "Bad password must return null");
 });
 
 test("auth.service: signSessionToken and verifySessionToken round-trip securely", () => {
   const payload = {
     id: 1,
-    email: "admin@comparewisely.com",
+    email: SITE_ADMIN_EMAIL,
     name: "Editorial Lead",
     role: "ADMIN" as const,
   };

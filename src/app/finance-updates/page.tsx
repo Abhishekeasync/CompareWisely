@@ -8,6 +8,7 @@ import { NewsletterSignup } from "@/components/lazy/public-widgets";
 import { blogHref, blogPageCount, blogSlice, parseBlogQuery, readingMinutesFromChars } from "@/lib/blog-index";
 import { isArticleMediaUrl } from "@/lib/validations/media-url";
 import { getArticleContentLengths, getArticles, getBlogCategories } from "@/lib/services/content.service";
+import { SITE_URL } from "@/lib/site";
 import { ArticleType } from "@prisma/client";
 
 export const instant = false;
@@ -49,10 +50,6 @@ const loadFinanceIndex = cache(async (search: string, category: string | undefin
     lengths,
   };
 });
-
-function siteOrigin() {
-  return process.env.NEXT_PUBLIC_SITE_URL || "https://comparewisely.com";
-}
 
 function coverUrl(value: string | null | undefined): string | null {
   const url = value?.trim() ?? "";
@@ -138,7 +135,7 @@ export default async function FinanceUpdatesPage({ searchParams }: FinancePagePr
   const issue = splitIssue(cards, featured);
   const totalPages = blogPageCount(total);
   const activeCategory = categories.find((category) => category.slug === query.category);
-  const origin = siteOrigin();
+  const origin = SITE_URL;
   const href = (options: { search?: string; category?: string; page?: number; hash?: boolean }) =>
     blogHref({ base: BASE, ...options });
 

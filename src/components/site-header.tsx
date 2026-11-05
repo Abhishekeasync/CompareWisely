@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PRIMARY_NAV } from "@/lib/catalog";
 import { MenuIcon } from "./icons";
+import { SiteBrand } from "./site-brand";
 
 type Props = {
   drawerOpen: boolean;
@@ -23,9 +24,7 @@ export function SiteHeader({ drawerOpen, onToggleDrawer }: Props) {
     <header className="nav">
       <div className="container nav__inner">
         <div className="nav__cluster">
-          <Link className="brand" href="/" aria-label="CompareWisely home">
-            CompareWisely
-          </Link>
+          <SiteBrand />
           <nav className="nav__links" aria-label="Primary">
             {PRIMARY_NAV.map((item) => {
               const current = isNavActive(pathname, item.href);

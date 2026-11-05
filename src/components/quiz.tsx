@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useLenis } from "lenis/react";
 import type { RecommendationAnswersInput } from "@/lib/validations/recommendation";
 import type { RecommendationMatch, RequirementStatus } from "@/lib/types/recommendation";
 
@@ -66,6 +67,7 @@ const FEATURE_OPTIONS: Array<{ value: MustHaveFeature; label: string; hint: stri
 const TOTAL_STEPS = 6;
 
 export function Quiz() {
+  const lenis = useLenis();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -97,7 +99,11 @@ export function Quiz() {
     setMonthlyInvoiceVolume("100_to_1000");
     setBankAccountsCount("multiple");
     setMustHaveFeatures(["gst", "cloud", "bank_feeds"]);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (lenis) {
+      lenis.scrollTo(0, { duration: 1.0 });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }
 
   async function submitWizard() {
@@ -132,7 +138,11 @@ export function Quiz() {
       }
 
       setResult(json.data);
+      if (lenis) {
+      lenis.scrollTo(0, { duration: 1.0 });
+    } else {
       window.scrollTo({ top: 0, behavior: "smooth" });
+    }
     } catch (err) {
       console.error("Quiz submission error:", err);
       const message = err instanceof Error ? err.message : "An unexpected error occurred while calculating your best fit.";

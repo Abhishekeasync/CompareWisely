@@ -82,7 +82,7 @@ export function CommandPalette({ open, onClose }: Props) {
           />
           <kbd>Esc</kbd>
         </div>
-        <div className="cmdk__results" id={titleId}>
+        <div className="cmdk__results" id={titleId} data-lenis-prevent>
           {results.length === 0 ? (
             <div className="cmdk__empty">No results for “{query.trim()}”. Try “Tally”, “GST” or “e-invoice”.</div>
           ) : (

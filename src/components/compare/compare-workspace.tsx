@@ -2,15 +2,38 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLenis } from "lenis/react";
+import type Lenis from "lenis";
 import type { DynamicMatrixData } from "@/lib/types/comparison";
 import { PageHead } from "@/components/page-head";
-import { ChevronIcon } from "@/components/icons";
+import { ChevronIcon, SearchIcon } from "@/components/icons";
 import { Money } from "@/components/money";
 import { CompareMatrix } from "./compare-matrix";
 
 const MAX_COMPARE_PRODUCTS = 4;
 const MIN_COMPARE_PRODUCTS = 2;
+/** Clears fixed nav + mobile tab bar when scrolling to the matrix via Lenis */
+const COMPARE_MATRIX_SCROLL_OFFSET = -70;
+
+function scrollCompareMatrix(lenis: Lenis | null | undefined) {
+  const target = document.getElementById("compare-matrix");
+  if (!target) return;
+
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (lenis && !reduce) {
+    lenis.scrollTo(target, {
+      offset: COMPARE_MATRIX_SCROLL_OFFSET,
+      duration: 1.0,
+    });
+    return;
+  }
+
+  target.scrollIntoView({
+    block: "start",
+    behavior: reduce ? "auto" : "smooth",
+  });
+}
 
 /** Lightweight product shape fetched from /api/v1/software */
 interface CatalogProduct {
@@ -40,6 +63,7 @@ interface PopularComparison {
 export function CompareWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const lenis = useLenis();
 
   // Parse selected product slugs from the URL
   const selectedSlugs = useMemo(() => {
@@ -60,6 +84,7 @@ export function CompareWorkspace() {
   const [query, setQuery] = useState("");
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const scrollAfterMatrixRef = useRef(false);
 
   // Fetch the full product catalog once
   useEffect(() => {
@@ -89,10 +114,13 @@ export function CompareWorkspace() {
   // Fetch the comparison matrix whenever selectedSlugs changes
   useEffect(() => {
     if (selectedSlugs.length < MIN_COMPARE_PRODUCTS) {
+      setMatrix(null);
+      setLoading(false);
       return;
     }
 
     let isCurrent = true;
+    setLoading(true);
     fetch(`/api/v1/compare/matrix?ids=${selectedSlugs.join(",")}`)
       .then((res) => res.json())
       .then((json) => {
@@ -111,6 +139,18 @@ export function CompareWorkspace() {
       isCurrent = false;
     };
   }, [selectedSlugs]);
+
+  const scrollToMatrix = useCallback(() => {
+    scrollCompareMatrix(lenis);
+  }, [lenis]);
+
+  useEffect(() => {
+    if (!scrollAfterMatrixRef.current || loading) return;
+    scrollAfterMatrixRef.current = false;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => scrollCompareMatrix(lenis));
+    });
+  }, [loading, lenis, matrix]);
 
   const syncUrl = useCallback(
     (slugs: string[]) => {
@@ -196,15 +236,8 @@ export function CompareWorkspace() {
   }
 
   function loadPopular(slugs: string[]) {
-    setLoading(true);
+    scrollAfterMatrixRef.current = true;
     updateSelection(slugs.slice(0, MAX_COMPARE_PRODUCTS));
-    requestAnimationFrame(() =>
-      document.getElementById("compare-matrix")?.scrollIntoView({ behavior: "smooth", block: "start" }),
-    );
-  }
-
-  function scrollToMatrix() {
-    document.getElementById("compare-matrix")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   const slots = Array.from(
@@ -223,159 +256,230 @@ export function CompareWorkspace() {
 
       <section className="section">
         <div className="container compare-hub">
-          <div className="compare-slots" aria-label="Selected products">
-            {slots.map((product, index) => {
-              const isActive = activeSlot === index;
-              const startingPrice = product?.pricingPlans?.find((p) => p.isStartingPrice)?.displayPrice;
-              return (
-                <div
-                  key={index}
-                  className={`compare-slot${product ? " compare-slot--filled" : ""}${isActive ? " compare-slot--active" : ""}`}
+          <div className="compare-picker">
+            <div className="compare-picker__head row between gap-12">
+              <p className="tiny muted">
+                <b>{selectedSlugs.length}</b> of {MAX_COMPARE_PRODUCTS} slots filled
+                {activeSlot !== null ? (
+                  <>
+                    {" "}
+                    · choosing for <b>slot {activeSlot + 1}</b>
+                  </>
+                ) : null}
+              </p>
+              {activeSlot !== null ? (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  onClick={() => {
+                    setActiveSlot(null);
+                    setQuery("");
+                  }}
                 >
-                  <p className="compare-slot__label">Product {index + 1}</p>
-                  {product ? (
-                    <>
-                      <span className={`swlogo swlogo--lg ${product.slug.split("-")[0]}`} aria-hidden="true">
-                        {product.mono || product.name[0]}
-                      </span>
-                      <b className="compare-slot__name">{product.name}</b>
-                      <span className="tiny muted">
-                        <Money value={startingPrice || "Contact vendor"} />
-                      </span>
-                      <div className="compare-slot__actions row gap-8">
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          onClick={() => {
-                            setActiveSlot(index);
-                            setQuery("");
-                          }}
-                        >
-                          Replace
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          onClick={() => clearSlot(index)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      className="compare-slot__empty"
-                      onClick={() => {
-                        setActiveSlot(index);
-                        setQuery("");
-                      }}
-                    >
-                      Add a product
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                  Cancel selection
+                </button>
+              ) : null}
+            </div>
 
-          <div className="compare-search">
-            <label className="sr-only" htmlFor="compare-search-input">
-              Search products to add
-            </label>
-            <input
-              id="compare-search-input"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={
-                activeSlot !== null
-                  ? "Search to fill this slot…"
-                  : selectedSlugs.length >= MAX_COMPARE_PRODUCTS
-                    ? "Maximum products selected"
-                    : "Search software to add…"
-              }
-              disabled={selectedSlugs.length >= MAX_COMPARE_PRODUCTS && activeSlot === null}
-              aria-describedby="compare-search-hint"
-            />
-            <p id="compare-search-hint" className="tiny muted">
-              {activeSlot !== null
-                ? `Choosing a result replaces product slot ${activeSlot + 1}.`
-                : `Select up to ${MAX_COMPARE_PRODUCTS} products. Duplicates are ignored.`}
-            </p>
-            {searchResults.length > 0 && query.trim() ? (
-              <ul className="compare-search__results" role="listbox" aria-label="Search results">
-                {searchResults.map((item) => {
-                  const price = item.pricingPlans?.find((p) => p.isStartingPrice)?.displayPrice;
-                  return (
-                    <li key={item.slug}>
+            <div className="compare-slots" aria-label="Selected products">
+              {slots.map((product, index) => {
+                const isActive = activeSlot === index;
+                const startingPrice = product?.pricingPlans?.find((p) => p.isStartingPrice)?.displayPrice;
+                return (
+                  <div
+                    key={index}
+                    className={`compare-slot${product ? " compare-slot--filled" : ""}${isActive ? " compare-slot--active" : ""}`}
+                  >
+                    <div className="compare-slot__head row between gap-8">
+                      <p className="compare-slot__label">Product {index + 1}</p>
+                      <span
+                        className="compare-slot__indicator"
+                        aria-hidden="true"
+                        data-active={isActive ? "true" : product ? "filled" : "false"}
+                      />
+                    </div>
+                    {product ? (
+                      <>
+                        <div className="compare-slot__product row gap-12">
+                          <span
+                            className={`swlogo swlogo--lg ${product.slug.split("-")[0]}`}
+                            aria-hidden="true"
+                          >
+                            {product.mono || product.name[0]}
+                          </span>
+                          <div className="compare-slot__meta grow">
+                            <b className="compare-slot__name">{product.name}</b>
+                            <span className="tiny muted compare-slot__price">
+                              from <Money value={startingPrice || "Contact vendor"} />
+                            </span>
+                          </div>
+                        </div>
+                        <div className="compare-slot__actions row gap-8">
+                          <button
+                            type="button"
+                            className="btn btn--ghost btn--sm"
+                            onClick={() => {
+                              setActiveSlot(index);
+                              setQuery("");
+                            }}
+                          >
+                            Replace
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn--ghost btn--sm"
+                            onClick={() => clearSlot(index)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </>
+                    ) : (
                       <button
                         type="button"
-                        role="option"
-                        aria-selected={false}
-                        className="compare-search__hit"
-                        onClick={() => pickProduct(item.slug)}
+                        className="compare-slot__empty"
+                        onClick={() => {
+                          setActiveSlot(index);
+                          setQuery("");
+                        }}
                       >
-                        <span className={`swlogo swlogo--sm ${item.slug.split("-")[0]}`} aria-hidden="true">
-                          {item.mono || item.name[0]}
+                        <span className="compare-slot__empty-icon" aria-hidden="true">
+                          +
                         </span>
-                        <span className="grow">
-                          <b>{item.name}</b>
-                          <span className="tiny muted block">{item.tagline}</span>
-                        </span>
-                        <span className="tiny">
-                          <Money value={price || "Contact vendor"} />
-                        </span>
+                        <span>Add a product</span>
                       </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : query.trim() ? (
-              <p className="compare-empty muted">No matching products. Try another name.</p>
-            ) : null}
-          </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
 
-          <div className="compare-actions row gap-12">
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={!showMatrix}
-              onClick={scrollToMatrix}
-            >
-              Compare {selectedSlugs.length} product{selectedSlugs.length === 1 ? "" : "s"}
-            </button>
-            {!showMatrix ? (
-              <p className="muted tiny">
-                Add at least {MIN_COMPARE_PRODUCTS} products to open the matrix.
+            <div className="compare-toolbar">
+              <div className="catalog-search compare-search">
+                <span className="compare-search__icon" aria-hidden="true">
+                  <SearchIcon />
+                </span>
+                <label className="sr-only" htmlFor="compare-search-input">
+                  Search products to add
+                </label>
+                <input
+                  id="compare-search-input"
+                  className="catalog-search__input"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={
+                    activeSlot !== null
+                      ? `Search to fill slot ${activeSlot + 1}…`
+                      : selectedSlugs.length >= MAX_COMPARE_PRODUCTS
+                        ? "Maximum products selected"
+                        : "Search accounting software to add…"
+                  }
+                  disabled={selectedSlugs.length >= MAX_COMPARE_PRODUCTS && activeSlot === null}
+                  aria-describedby="compare-search-hint"
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm catalog-search__submit"
+                  disabled={!showMatrix}
+                  onClick={scrollToMatrix}
+                >
+                  Compare {selectedSlugs.length}
+                </button>
+              </div>
+              <p id="compare-search-hint" className="tiny muted compare-search__hint">
+                {activeSlot !== null
+                  ? `Choosing a result replaces product slot ${activeSlot + 1}. Duplicates are ignored.`
+                  : `Select up to ${MAX_COMPARE_PRODUCTS} products, or pick a curated pairing below.`}
+                {!showMatrix ? (
+                  <>
+                    {" "}
+                    Add at least {MIN_COMPARE_PRODUCTS} products to open the matrix.
+                  </>
+                ) : null}
               </p>
-            ) : null}
+              {searchResults.length > 0 && query.trim() ? (
+                <ul
+                  className="compare-search__results"
+                  role="listbox"
+                  aria-label="Search results"
+                >
+                  {searchResults.map((item) => {
+                    const price = item.pricingPlans?.find((p) => p.isStartingPrice)?.displayPrice;
+                    return (
+                      <li key={item.slug}>
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={false}
+                          className="compare-search__hit"
+                          onClick={() => pickProduct(item.slug)}
+                        >
+                          <span
+                            className={`swlogo swlogo--sm ${item.slug.split("-")[0]}`}
+                            aria-hidden="true"
+                          >
+                            {item.mono || item.name[0]}
+                          </span>
+                          <span className="grow">
+                            <b>{item.name}</b>
+                            <span className="tiny muted block">{item.tagline}</span>
+                          </span>
+                          <span className="tiny">
+                            <Money value={price || "Contact vendor"} />
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : query.trim() ? (
+                <p className="compare-empty muted">No matching products. Try another name.</p>
+              ) : null}
+            </div>
           </div>
 
           {/* Popular Comparisons */}
           <div className="compare-popular">
-            <h2 className="section-head">Popular comparisons</h2>
-            <div className="compare-popular__grid">
+            <div className="compare-popular__head row between gap-12">
+              <h2 className="section-head">Popular comparisons</h2>
+              <span className="tiny muted">One click loads the matrix</span>
+            </div>
+            <div className="path-grid compare-popular__list">
               {popularComparisons.length > 0
-                ? popularComparisons.map((comp) => (
+                ? popularComparisons.map((comp, index) => (
                     <button
                       key={comp.slug}
                       type="button"
-                      className="compare-popular__card"
+                      className="path-card compare-popular__card"
                       onClick={() => loadPopular(comp.products.map((p) => p.slug))}
                     >
-                      <div className="compare-popular__names row gap-8">
-                        {comp.products.map((p) => (
-                          <span key={p.slug} className="row gap-8">
-                            <span className={`swlogo swlogo--sm ${p.slug.split("-")[0]}`} aria-hidden="true">
-                              {p.mono || p.name[0]}
+                      <span className="path-card__index mono">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <div className="compare-popular__body">
+                        <div className="compare-popular__names row gap-8">
+                          {comp.products.map((p, productIndex) => (
+                            <span key={p.slug} className="row gap-8 compare-popular__product">
+                              {productIndex > 0 ? (
+                                <span className="compare-popular__vs muted" aria-hidden="true">
+                                  vs
+                                </span>
+                              ) : null}
+                              <span
+                                className={`swlogo swlogo--sm ${p.slug.split("-")[0]}`}
+                                aria-hidden="true"
+                              >
+                                {p.mono || p.name[0]}
+                              </span>
+                              <b>{p.name}</b>
                             </span>
-                            <b>{p.name}</b>
-                          </span>
-                        ))}
+                          ))}
+                        </div>
+                        <p className="muted tiny compare-popular__blurb">
+                          {comp.verdictSummary || `Compare ${comp.title}`}
+                        </p>
                       </div>
-                      <p className="muted tiny">
-                        {comp.verdictSummary || `Compare ${comp.title}`}
-                      </p>
                       <span className="path-card__go">
                         Load comparison
                         <ChevronIcon />
@@ -399,27 +503,40 @@ export function CompareWorkspace() {
                       title: "Vyapar vs Zoho Books",
                       blurb: "Phone-first invoicing vs a fuller cloud books stack.",
                     },
-                  ].map((item) => (
+                  ].map((item, index) => (
                     <button
                       key={item.slugs.join("-")}
                       type="button"
-                      className="compare-popular__card"
+                      className="path-card compare-popular__card"
                       onClick={() => loadPopular(item.slugs)}
                     >
-                      <div className="compare-popular__names row gap-8">
-                        {item.slugs.map((slug) => {
-                          const product = catalog.find((p) => p.slug === slug);
-                          return (
-                            <span key={slug} className="row gap-8">
-                              <span className={`swlogo swlogo--sm ${slug.split("-")[0]}`} aria-hidden="true">
-                                {product?.mono || slug[0].toUpperCase()}
+                      <span className="path-card__index mono">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <div className="compare-popular__body">
+                        <div className="compare-popular__names row gap-8">
+                          {item.slugs.map((slug, productIndex) => {
+                            const product = catalog.find((p) => p.slug === slug);
+                            return (
+                              <span key={slug} className="row gap-8 compare-popular__product">
+                                {productIndex > 0 ? (
+                                  <span className="compare-popular__vs muted" aria-hidden="true">
+                                    vs
+                                  </span>
+                                ) : null}
+                                <span
+                                  className={`swlogo swlogo--sm ${slug.split("-")[0]}`}
+                                  aria-hidden="true"
+                                >
+                                  {product?.mono || slug[0].toUpperCase()}
+                                </span>
+                                <b>{product?.name || slug}</b>
                               </span>
-                              <b>{product?.name || slug}</b>
-                            </span>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
+                        <p className="muted tiny compare-popular__blurb">{item.blurb}</p>
                       </div>
-                      <p className="muted tiny">{item.blurb}</p>
                       <span className="path-card__go">
                         Load comparison
                         <ChevronIcon />
@@ -427,7 +544,7 @@ export function CompareWorkspace() {
                     </button>
                   ))}
             </div>
-            <p className="tiny muted">
+            <p className="tiny muted compare-popular__foot">
               Curated pairings for India MSME accounting software.{" "}
               <Link href="/compare/tally-prime-vs-zoho-books">Read the flagship Tally vs Zoho article</Link>.
             </p>

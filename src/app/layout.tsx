@@ -1,31 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { JetBrains_Mono, Newsreader, Public_Sans } from "next/font/google";
 import { SiteShell } from "@/components/site-shell";
 import { SmoothScrollProvider } from "@/components/providers/smooth-scroll-provider";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
+import "@fontsource-variable/newsreader";
+import "@fontsource-variable/public-sans";
+import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
-
-const display = Newsreader({
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
-  display: "swap",
-  variable: "--font-display-family",
-});
-
-const ui = Public_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  display: "swap",
-  variable: "--font-ui-family",
-});
-
-const mono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  display: "swap",
-  preload: false,
-  variable: "--font-mono-family",
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -42,7 +22,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" data-theme="light" className={`${display.variable} ${ui.variable} ${mono.variable}`} suppressHydrationWarning>
+    <html lang="en" data-theme="light" suppressHydrationWarning>
       <body>
         <SmoothScrollProvider>
           <SiteShell year={2026}>{children}</SiteShell>

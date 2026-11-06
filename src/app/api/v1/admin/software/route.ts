@@ -4,34 +4,8 @@ import { requireAuth } from "@/lib/services/auth.service";
 import { getAllSoftwareForAdmin } from "@/lib/services/admin.service";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@prisma/client";
-import { z } from "zod";
-
-const featureCheckpointCreateSchema = z.object({
-  featureId: z.number().optional(),
-  featureName: z.string().trim().min(2, "Feature name is required."),
-  categoryName: z.string().trim().optional(),
-  valueKind: z.enum(["YES", "NO", "PARTIAL", "PAID_ADDON", "UNAVAILABLE", "UNKNOWN"]).default("YES"),
-  textValue: z.string().trim().optional().nullable(),
-  note: z.string().trim().optional().nullable(),
-});
-
-const softwareCreateSchema = z.object({
-  name: z.string().trim().min(2, "Name is required."),
-  slug: z.string().trim().min(2).regex(/^[a-z0-9-]+$/, "Slug: lowercase letters, numbers, hyphens only."),
-  mono: z.string().trim().max(10).optional(),
-  categoryId: z.number().int().positive("Category is required."),
-  tagline: z.string().trim().max(255).optional(),
-  description: z.string().trim().min(10, "Description is required."),
-  websiteUrl: z.string().url().or(z.literal("")).optional(),
-  trialUrl: z.string().url().or(z.literal("")).optional(),
-  logoUrl: z.string().url().or(z.literal("")).optional(),
-  status: z.enum(["PUBLISHED", "DRAFT", "ARCHIVED"]).default("PUBLISHED"),
-  pros: z.array(z.string().trim()).optional(),
-  cons: z.array(z.string().trim()).optional(),
-  startingPrice: z.string().trim().optional(),
-  startingPlanName: z.string().trim().optional(),
-  featureCheckpoints: z.array(featureCheckpointCreateSchema).optional(),
-});
+import { adminSoftwareWriteSchema } from "@/lib/validations/software";
+import { readApiError, validationErrorPayload } from "@/lib/validations/feedback";
 
 export async function GET() {
   await connection();
@@ -40,8 +14,12 @@ export async function GET() {
     const software = await getAllSoftwareForAdmin();
     return NextResponse.json({ success: true, data: software });
   } catch (error: any) {
+    const failure = readApiError(
+      { error: { code: error.message, message: error.message } },
+      "Could not load the software catalogue."
+    );
     const status = error.message === "UNAUTHORIZED" ? 401 : error.message === "FORBIDDEN" ? 403 : 500;
-    return NextResponse.json({ success: false, error: { code: error.message, message: error.message } }, { status });
+    return NextResponse.json({ success: false, error: { code: error.message, message: failure.message } }, { status });
   }
 }
 
@@ -50,10 +28,10 @@ export async function POST(request: NextRequest) {
   try {
     await requireAuth(["ADMIN", "EDITOR"]);
     const body = await request.json();
-    const parsed = softwareCreateSchema.safeParse(body);
+    const parsed = adminSoftwareWriteSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: { code: "VALIDATION_FAILED", message: "Invalid inputs.", details: parsed.error.flatten() } },
+        { success: false, error: validationErrorPayload(parsed.error) },
         { status: 400 }
       );
     }
@@ -79,7 +57,7 @@ export async function POST(request: NextRequest) {
     const existing = await prisma.softwareProduct.findUnique({ where: { slug } });
     if (existing) {
       return NextResponse.json(
-        { success: false, error: { code: "SLUG_CONFLICT", message: `A product with slug "${slug}" already exists.` } },
+        { success: false, error: { code: "SLUG_CONFLICT", message: `“${slug}” is already used by another product. Choose a different URL slug.`, fields: { slug: `“${slug}” is already used. Choose a different URL slug.` } } },
         { status: 409 }
       );
     }
@@ -204,7 +182,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: fullProduct || product, message: "Software product created." }, { status: 201 });
   } catch (error: any) {
+    const failure = readApiError(
+      { error: { code: error.message, message: error.message } },
+      "Could not save this product. Please try again."
+    );
     const status = error.message === "UNAUTHORIZED" ? 401 : error.message === "FORBIDDEN" ? 403 : 500;
-    return NextResponse.json({ success: false, error: { code: error.message, message: error.message } }, { status });
+    return NextResponse.json({ success: false, error: { code: error.message, message: failure.message } }, { status });
   }
 }

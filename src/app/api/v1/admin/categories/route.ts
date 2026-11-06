@@ -2,17 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { connection } from "next/server";
 import { requireAuth } from "@/lib/services/auth.service";
 import { prisma } from "@/lib/db";
-import { z } from "zod";
-
-const categoryCreateSchema = z.object({
-  name: z.string().trim().min(2, "Category name must be at least 2 characters."),
-  slug: z
-    .string()
-    .trim()
-    .min(2)
-    .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens."),
-  description: z.string().trim().optional(),
-});
+import { categoryCreateSchema } from "@/lib/validations/content";
+import { validationErrorPayload } from "@/lib/validations/feedback";
 
 export async function GET() {
   await connection();
@@ -45,14 +36,7 @@ export async function POST(request: NextRequest) {
     const parsed = categoryCreateSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: "VALIDATION_FAILED",
-            message: "Invalid category inputs.",
-            details: parsed.error.flatten(),
-          },
-        },
+        { success: false, error: validationErrorPayload(parsed.error) },
         { status: 400 }
       );
     }
@@ -62,7 +46,7 @@ export async function POST(request: NextRequest) {
     const existing = await prisma.category.findUnique({ where: { slug } });
     if (existing) {
       return NextResponse.json(
-        { success: false, error: { code: "SLUG_CONFLICT", message: `A category with slug "${slug}" already exists.` } },
+        { success: false, error: { code: "SLUG_CONFLICT", message: `“${slug}” is already used by another category.`, fields: { slug: `“${slug}” is already used. Choose a different URL slug.` } } },
         { status: 409 }
       );
     }

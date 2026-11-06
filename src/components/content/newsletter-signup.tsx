@@ -1,45 +1,58 @@
 "use client";
 
 import { useState } from "react";
+import { FieldError } from "@/components/field-error";
+import { newsletterSubscribeSchema } from "@/lib/validations/newsletter";
+import { readApiError, validationErrorPayload, dropField, type FieldErrors } from "@/lib/validations/feedback";
 
 export function NewsletterSignup() {
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  const clearField = (key: string) => setFieldErrors((prev) => dropField(prev, key));
 
   async function handleSubscribe(e: React.FormEvent) {
     e.preventDefault();
-    if (!consent) {
-      setMessage({ type: "error", text: "Please check the box to consent to receiving updates." });
+    setMessage(null);
+
+    const parsed = newsletterSubscribeSchema.safeParse({ email, consent });
+    if (!parsed.success) {
+      const failure = validationErrorPayload(parsed.error);
+      setFieldErrors(failure.fields);
+      setMessage({ type: "error", text: failure.message });
       return;
     }
 
     setLoading(true);
-    setMessage(null);
+    setFieldErrors({});
 
     try {
       const res = await fetch("/api/v1/newsletter/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, consent }),
+        body: JSON.stringify({ email: parsed.data.email, consent: true }),
       });
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || "Failed to subscribe to newsletter.");
+        const failure = readApiError(json, "We couldn't subscribe you just now. Please try again.");
+        setFieldErrors(failure.fields);
+        throw new Error(failure.message);
       }
 
       setMessage({
         type: "success",
-        text: "You're subscribed! You'll receive factual software and GST compliance briefings.",
+        text: "You're subscribed. You'll receive factual software and GST compliance briefings.",
       });
       setEmail("");
       setConsent(false);
     } catch (err) {
       setMessage({
         type: "error",
-        text: err instanceof Error ? err.message : "An unexpected error occurred. Please try again.",
+        text: err instanceof Error ? err.message : "Something went wrong. Please try again.",
       });
     } finally {
       setLoading(false);
@@ -70,43 +83,56 @@ export function NewsletterSignup() {
           </p>
         </div>
 
-        <form onSubmit={handleSubscribe} style={{ flex: "1 1 320px", maxWidth: "420px" }}>
+        <form onSubmit={handleSubscribe} noValidate style={{ flex: "1 1 320px", maxWidth: "420px" }}>
           <div className="stack gap-10">
-            <div className="row gap-8">
-              <input
-                type="email"
-                required
-                placeholder="name@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                style={{
-                  flex: 1,
-                  padding: "10px 14px",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--r-pill)",
-                  background: "var(--surface-2)",
-                  color: "var(--fg)",
-                  fontSize: "0.875rem",
-                }}
-              />
-              <button className="btn btn--primary" type="submit" disabled={loading} style={{ whiteSpace: "nowrap" }}>
-                {loading ? "Joining..." : "Subscribe"}
-              </button>
+            <div className={fieldErrors.email ? "field-invalid" : undefined}>
+              <div className="row gap-8">
+                <input
+                  type="email"
+                  placeholder="name@company.com"
+                  value={email}
+                  aria-label="Email address"
+                  aria-invalid={fieldErrors.email ? true : undefined}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    clearField("email");
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "10px 14px",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--r-pill)",
+                    background: "var(--surface-2)",
+                    color: "var(--fg)",
+                    fontSize: "0.875rem",
+                  }}
+                />
+                <button className="btn btn--primary" type="submit" disabled={loading} style={{ whiteSpace: "nowrap" }}>
+                  {loading ? "Joining..." : "Subscribe"}
+                </button>
+              </div>
+              <FieldError message={fieldErrors.email} />
             </div>
 
-            <label className="row gap-8" style={{ cursor: "pointer", fontSize: "0.75rem", color: "var(--muted)", lineHeight: 1.4 }}>
-              <input
-                type="checkbox"
-                required
-                checked={consent}
-                onChange={(e) => setConsent(e.target.checked)}
-              />
-              <span>I agree to receive monthly software &amp; GST compliance emails.</span>
-            </label>
+            <div className={fieldErrors.consent ? "field-invalid" : undefined}>
+              <label className="row gap-8" style={{ cursor: "pointer", fontSize: "0.75rem", color: "var(--muted)", lineHeight: 1.4 }}>
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(e) => {
+                    setConsent(e.target.checked);
+                    clearField("consent");
+                  }}
+                />
+                <span>I agree to receive monthly software &amp; GST compliance emails.</span>
+              </label>
+              <FieldError message={fieldErrors.consent} />
+            </div>
           </div>
 
           {message ? (
             <div
+              role="status"
               style={{
                 marginTop: "12px",
                 fontSize: "0.8rem",

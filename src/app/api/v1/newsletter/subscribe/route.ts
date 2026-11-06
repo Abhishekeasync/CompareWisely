@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connection } from "next/server";
 import { subscribeNewsletter } from "@/lib/services/newsletter.service";
 import { newsletterSubscribeSchema } from "@/lib/validations/newsletter";
+import { validationErrorPayload } from "@/lib/validations/feedback";
 
 export async function POST(request: NextRequest) {
   await connection();
@@ -12,14 +13,7 @@ export async function POST(request: NextRequest) {
 
     if (!parseResult.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: "VALIDATION_FAILED",
-            message: "Invalid email or missing consent.",
-            details: parseResult.error.flatten(),
-          },
-        },
+        { success: false, error: validationErrorPayload(parseResult.error) },
         { status: 400 }
       );
     }
@@ -42,7 +36,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: {
           code: "INTERNAL_ERROR",
-          message: error.message || "Failed to subscribe to newsletter.",
+          message: "We couldn't subscribe you just now. Please try again.",
         },
       },
       { status: 500 }

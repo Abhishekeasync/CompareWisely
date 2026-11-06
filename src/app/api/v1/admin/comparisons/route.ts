@@ -2,25 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { connection } from "next/server";
 import { requireAuth } from "@/lib/services/auth.service";
 import { prisma } from "@/lib/db";
-import { z } from "zod";
-
-const comparisonCreateSchema = z.object({
-  title: z.string().trim().min(5, "Title must be at least 5 characters."),
-  slug: z
-    .string()
-    .trim()
-    .min(3)
-    .regex(/^[a-z0-9-]+$/, "Slug must only contain lowercase letters, numbers, and hyphens."),
-  metaTitle: z.string().trim().max(60).optional(),
-  metaDescription: z.string().trim().max(160).optional(),
-  verdictSummary: z.string().trim().optional(),
-  isPublished: z.boolean().default(true),
-  /** Array of software product IDs in display order */
-  productIds: z
-    .array(z.number().int().positive())
-    .min(2, "A comparison requires at least 2 products.")
-    .max(4, "A comparison can include at most 4 products."),
-});
+import { comparisonCreateSchema } from "@/lib/validations/comparison";
+import { validationErrorPayload } from "@/lib/validations/feedback";
 
 export async function POST(request: NextRequest) {
   await connection();
@@ -32,14 +15,7 @@ export async function POST(request: NextRequest) {
     const parsed = comparisonCreateSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: "VALIDATION_FAILED",
-            message: "Invalid comparison inputs.",
-            details: parsed.error.flatten(),
-          },
-        },
+        { success: false, error: validationErrorPayload(parsed.error) },
         { status: 400 }
       );
     }
@@ -54,7 +30,8 @@ export async function POST(request: NextRequest) {
           success: false,
           error: {
             code: "SLUG_CONFLICT",
-            message: `A comparison page with slug "${slug}" already exists.`,
+            message: `“${slug}” is already used by another comparison. Choose a different URL slug.`,
+            fields: { slug: `“${slug}” is already used. Choose a different URL slug.` },
           },
         },
         { status: 409 }

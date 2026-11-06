@@ -13,15 +13,16 @@ type SiteBrandProps = {
   className?: string;
   /** Nav uses shell height tokens; footer uses a larger mark. */
   tone?: "nav" | "footer";
+  href?: string;
 };
 
-export function SiteBrand({ className, tone = "nav" }: SiteBrandProps) {
+export function SiteBrand({ className, tone = "nav", href = "/" }: SiteBrandProps) {
   const rootClass = ["brand", tone === "footer" ? "brand--footer" : "brand--nav", className]
     .filter(Boolean)
     .join(" ");
 
   return (
-    <Link className={rootClass} href="/" aria-label={`${SITE_NAME} home`}>
+    <Link className={rootClass} href={href} aria-label={`${SITE_NAME} home`}>
       <Image
         className="brand__logo"
         src={LOGO.src}

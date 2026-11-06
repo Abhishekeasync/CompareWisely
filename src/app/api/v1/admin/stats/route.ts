@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
 
   try {
     await requireAuth(["ADMIN", "EDITOR", "MODERATOR"]);
-    const stats = await getAdminDashboardStats();
+    const stats = await getAdminDashboardStats(new Date());
 
     return NextResponse.json({
       success: true,

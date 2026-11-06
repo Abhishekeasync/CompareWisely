@@ -2,20 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { connection } from "next/server";
 import { requireAuth } from "@/lib/services/auth.service";
 import { prisma } from "@/lib/db";
-import { z } from "zod";
+import { comparisonPatchSchema } from "@/lib/validations/comparison";
+import { validationErrorPayload } from "@/lib/validations/feedback";
 
 function errStatus(msg: string) {
   return msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500;
 }
-
-const patchSchema = z.object({
-  action: z.enum(["publish", "draft"]).optional(),
-  isPublished: z.boolean().optional(),
-  title: z.string().trim().min(5).optional(),
-  metaTitle: z.string().trim().max(60).optional(),
-  metaDescription: z.string().trim().max(160).optional(),
-  verdictSummary: z.string().trim().optional(),
-});
 
 /* ── PATCH /api/v1/admin/comparisons/[id] ──────────────── */
 export async function PATCH(
@@ -37,10 +29,10 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const parsed = patchSchema.safeParse(body);
+    const parsed = comparisonPatchSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: { code: "VALIDATION_FAILED", message: "Invalid patch payload.", details: parsed.error.flatten() } },
+        { success: false, error: validationErrorPayload(parsed.error) },
         { status: 400 }
       );
     }

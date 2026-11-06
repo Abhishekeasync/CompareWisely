@@ -1,3 +1,4 @@
+import { ArticleImageCarousel } from "@/components/content/article-image-carousel";
 import { isDirectHostedVideoUrl } from "@/lib/uploads/article-media-config";
 import { normalizeArticleImageUrls } from "@/lib/uploads/article-images";
 
@@ -41,45 +42,7 @@ export function ArticleHeroMedia({
 
   return (
     <div className="stack gap-16" style={{ marginBottom: "32px" }}>
-      {images.length > 0 ? (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: images.length === 1 ? "1fr" : "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "12px",
-          }}
-        >
-          {images.map((src, index) => (
-            <div
-              key={src}
-              style={{
-                border: "1px solid var(--border)",
-                overflow: "hidden",
-                gridColumn: index === 0 && images.length > 1 ? "1 / -1" : undefined,
-                aspectRatio: index === 0 ? "16 / 9" : "4 / 3",
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
-                alt={index === 0 ? "Article hero" : `Article image ${index + 1}`}
-                width={index === 0 ? 1200 : 640}
-                height={index === 0 ? 675 : 480}
-                loading={index === 0 ? "eager" : "lazy"}
-                decoding="async"
-                fetchPriority={index === 0 ? "high" : "auto"}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  maxHeight: index === 0 ? "420px" : "280px",
-                  objectFit: "cover",
-                  display: "block",
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      ) : null}
+      {images.length > 0 ? <ArticleImageCarousel images={images} /> : null}
 
       {isHostedVideo ? (
         <div style={{ border: "1px solid var(--border)", background: "#000" }}>

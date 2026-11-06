@@ -4,8 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHead } from "@/components/page-head";
-import { AdminNav } from "@/components/admin/admin-nav";
+import { FieldError } from "@/components/field-error";
 import { uiInput as INPUT_STYLE, uiInputMono as MONO_INPUT } from "@/lib/ui-surfaces";
+import { comparisonCreateSchema } from "@/lib/validations/comparison";
+import { readApiError, validationErrorPayload, dropField, type FieldErrors } from "@/lib/validations/feedback";
 
 interface SoftwareOption {
   id: number;
@@ -57,16 +59,22 @@ export function ComparisonBuilderForm({ software }: ComparisonBuilderFormProps) 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  const clearError = (key: string) => setFieldErrors((prev) => dropField(prev, key));
 
   function handleTitleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value;
     setTitle(val);
+    clearError("title");
     if (!slug || slug === autoSlug(title)) {
       setSlug(autoSlug(val));
+      clearError("slug");
     }
   }
 
   function toggleProduct(id: number) {
+    clearError("productIds");
     setSelectedIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
       if (prev.length >= 4) return prev; // max 4
@@ -86,12 +94,27 @@ export function ComparisonBuilderForm({ software }: ComparisonBuilderFormProps) 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (selectedIds.length < 2) {
-      setErrorMsg("Please select at least 2 products to compare.");
+    setErrorMsg(null);
+
+    const payload = {
+      title,
+      slug,
+      metaTitle: metaTitle || undefined,
+      metaDescription: metaDescription || undefined,
+      verdictSummary: verdictSummary || undefined,
+      isPublished,
+      productIds: selectedIds,
+    };
+    const parsed = comparisonCreateSchema.safeParse(payload);
+    if (!parsed.success) {
+      const failure = validationErrorPayload(parsed.error);
+      setFieldErrors(failure.fields);
+      setErrorMsg(failure.message);
       return;
     }
+
     setSubmitting(true);
-    setErrorMsg(null);
+    setFieldErrors({});
 
     try {
       const res = await fetch("/api/v1/admin/comparisons", {
@@ -110,7 +133,9 @@ export function ComparisonBuilderForm({ software }: ComparisonBuilderFormProps) 
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || "Failed to create comparison.");
+        const failure = readApiError(json, "Could not create this comparison. Please try again.");
+        setFieldErrors(failure.fields);
+        throw new Error(failure.message);
       }
 
       router.push("/admin/comparisons");
@@ -134,9 +159,7 @@ export function ComparisonBuilderForm({ software }: ComparisonBuilderFormProps) 
       />
       <section className="section">
         <div className="container" style={{ maxWidth: "900px" }}>
-          <AdminNav current="comparisons" />
-
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <div
               className="panel card--pad"
               style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "28px" }}
@@ -159,7 +182,7 @@ export function ComparisonBuilderForm({ software }: ComparisonBuilderFormProps) 
               <div>
                 <SectionLabel>Comparison Page Details</SectionLabel>
                 <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-                  <div>
+                  <div className={fieldErrors.title ? "field-invalid" : undefined}>
                     <label
                       style={{ fontSize: "0.8rem", fontWeight: 600, display: "block", marginBottom: "6px" }}
                     >
@@ -167,16 +190,15 @@ export function ComparisonBuilderForm({ software }: ComparisonBuilderFormProps) 
                     </label>
                     <input
                       type="text"
-                      required
-                      minLength={5}
                       placeholder="e.g. Tally Prime vs Zoho Books vs Busy Accounting 2026"
                       value={title}
                       onChange={handleTitleChange}
                       style={{ ...INPUT_STYLE, fontWeight: 600, fontSize: "1rem" }}
                     />
+                    <FieldError message={fieldErrors.title} />
                   </div>
 
-                  <div>
+                  <div className={fieldErrors.slug ? "field-invalid" : undefined}>
                     <label
                       style={{ fontSize: "0.8rem", fontWeight: 600, display: "block", marginBottom: "6px" }}
                     >
@@ -184,20 +206,21 @@ export function ComparisonBuilderForm({ software }: ComparisonBuilderFormProps) 
                     </label>
                     <input
                       type="text"
-                      required
-                      minLength={3}
-                      pattern="^[a-z0-9-]+$"
                       placeholder="tally-prime-vs-zoho-books-vs-busy"
                       value={slug}
-                      onChange={(e) => setSlug(e.target.value)}
+                      onChange={(e) => {
+                        setSlug(e.target.value);
+                        clearError("slug");
+                      }}
                       style={MONO_INPUT}
                     />
                     <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>
                       Will be published at /compare/{slug || "<slug>"}
                     </span>
+                    <FieldError message={fieldErrors.slug} />
                   </div>
 
-                  <div>
+                  <div className={fieldErrors.verdictSummary ? "field-invalid" : undefined}>
                     <label
                       style={{ fontSize: "0.8rem", fontWeight: 600, display: "block", marginBottom: "6px" }}
                     >
@@ -207,9 +230,13 @@ export function ComparisonBuilderForm({ software }: ComparisonBuilderFormProps) 
                       rows={3}
                       placeholder="Overall editorial summary: who should pick which product and why..."
                       value={verdictSummary}
-                      onChange={(e) => setVerdictSummary(e.target.value)}
+                      onChange={(e) => {
+                        setVerdictSummary(e.target.value);
+                        clearError("verdictSummary");
+                      }}
                       style={{ ...INPUT_STYLE, fontFamily: "inherit", lineHeight: 1.5 }}
                     />
+                    <FieldError message={fieldErrors.verdictSummary} />
                   </div>
                 </div>
               </div>
@@ -218,7 +245,7 @@ export function ComparisonBuilderForm({ software }: ComparisonBuilderFormProps) 
               <div>
                 <SectionLabel>SEO Metadata</SectionLabel>
                 <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-                  <div>
+                  <div className={fieldErrors.metaTitle ? "field-invalid" : undefined}>
                     <label
                       style={{ fontSize: "0.8rem", fontWeight: 600, display: "block", marginBottom: "6px" }}
                     >
@@ -232,12 +259,16 @@ export function ComparisonBuilderForm({ software }: ComparisonBuilderFormProps) 
                       maxLength={60}
                       placeholder="Leave blank to use page title"
                       value={metaTitle}
-                      onChange={(e) => setMetaTitle(e.target.value)}
+                      onChange={(e) => {
+                        setMetaTitle(e.target.value);
+                        clearError("metaTitle");
+                      }}
                       style={INPUT_STYLE}
                     />
+                    <FieldError message={fieldErrors.metaTitle} />
                   </div>
 
-                  <div>
+                  <div className={fieldErrors.metaDescription ? "field-invalid" : undefined}>
                     <label
                       style={{ fontSize: "0.8rem", fontWeight: 600, display: "block", marginBottom: "6px" }}
                     >
@@ -251,9 +282,13 @@ export function ComparisonBuilderForm({ software }: ComparisonBuilderFormProps) 
                       maxLength={160}
                       placeholder="Shown in Google search snippets..."
                       value={metaDescription}
-                      onChange={(e) => setMetaDescription(e.target.value)}
+                      onChange={(e) => {
+                        setMetaDescription(e.target.value);
+                        clearError("metaDescription");
+                      }}
                       style={{ ...INPUT_STYLE, fontFamily: "inherit", lineHeight: 1.5 }}
                     />
+                    <FieldError message={fieldErrors.metaDescription} />
                   </div>
                 </div>
               </div>
@@ -367,6 +402,7 @@ export function ComparisonBuilderForm({ software }: ComparisonBuilderFormProps) 
                     );
                   })}
                 </div>
+                <FieldError message={fieldErrors.productIds} />
                 <div style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: "4px" }}>
                   {selectedIds.length} of 4 maximum slots filled
                 </div>
@@ -416,7 +452,7 @@ export function ComparisonBuilderForm({ software }: ComparisonBuilderFormProps) 
                   <button
                     className="btn btn--primary"
                     type="submit"
-                    disabled={submitting || selectedIds.length < 2}
+                    disabled={submitting}
                   >
                     {submitting
                       ? "Creating..."

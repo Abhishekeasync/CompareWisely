@@ -1,8 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useLenis } from "lenis/react";
+import { isAdminPath } from "@/lib/site";
 import { MobileTabBar } from "./mobile-tab-bar";
 import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
@@ -13,8 +15,15 @@ const MobileDrawer = dynamic(
 );
 
 export function SiteShell({ year, children }: { year: number; children: React.ReactNode }) {
+  const pathname = usePathname();
+  const onAdmin = isAdminPath(pathname);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const lenis = useLenis();
+
+  useEffect(() => {
+    document.body.classList.toggle("is-admin", onAdmin);
+    return () => document.body.classList.remove("is-admin");
+  }, [onAdmin]);
 
   useEffect(() => {
     if (drawerOpen) {
@@ -38,8 +47,8 @@ export function SiteShell({ year, children }: { year: number; children: React.Re
       <SiteHeader drawerOpen={drawerOpen} onToggleDrawer={() => setDrawerOpen((open) => !open)} />
       {drawerOpen ? <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} /> : null}
       <main id="main">{children}</main>
-      <SiteFooter year={year} />
-      <MobileTabBar />
+      <SiteFooter year={year} compact={onAdmin} />
+      {onAdmin ? null : <MobileTabBar />}
     </>
   );
 }

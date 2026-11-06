@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useLenis } from "lenis/react";
 import type { RecommendationAnswersInput } from "@/lib/validations/recommendation";
+import { recommendationAnswersSchema } from "@/lib/validations/recommendation";
+import { readApiError, validationErrorPayload } from "@/lib/validations/feedback";
 import type { RecommendationMatch, RequirementStatus } from "@/lib/types/recommendation";
 
 interface Option<T> {
@@ -107,14 +109,6 @@ export function Quiz() {
   }
 
   async function submitWizard() {
-    if (mustHaveFeatures.length === 0) {
-      setErrorMsg("Please select at least one must-have capability.");
-      return;
-    }
-
-    setLoading(true);
-    setErrorMsg(null);
-
     const payload: RecommendationAnswersInput = {
       businessSize,
       industry,
@@ -125,6 +119,15 @@ export function Quiz() {
       mustHaveFeatures,
     };
 
+    const parsed = recommendationAnswersSchema.safeParse(payload);
+    if (!parsed.success) {
+      setErrorMsg(validationErrorPayload(parsed.error).message);
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg(null);
+
     try {
       const res = await fetch("/api/v1/recommendation", {
         method: "POST",
@@ -134,7 +137,7 @@ export function Quiz() {
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || "Failed to evaluate software recommendation.");
+        throw new Error(readApiError(json, "We couldn't calculate a match just now. Please try again.").message);
       }
 
       setResult(json.data);
@@ -145,7 +148,7 @@ export function Quiz() {
     }
     } catch (err) {
       console.error("Quiz submission error:", err);
-      const message = err instanceof Error ? err.message : "An unexpected error occurred while calculating your best fit.";
+      const message = err instanceof Error ? err.message : "Something went wrong while calculating your best fit. Please try again.";
       setErrorMsg(message);
     } finally {
       setLoading(false);

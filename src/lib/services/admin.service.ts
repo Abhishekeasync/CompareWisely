@@ -2,7 +2,10 @@ import { prisma } from "../db";
 import { serializeForClient } from "../serialize-for-client";
 import { CommentStatus } from "@prisma/client";
 
-export async function getAdminDashboardStats() {
+const STALE_PRICING_MS = 90 * 24 * 60 * 60 * 1000;
+
+export async function getAdminDashboardStats(asOf: Date) {
+  const staleBefore = new Date(asOf.getTime() - STALE_PRICING_MS);
   const [
     totalSoftware,
     totalCategories,
@@ -20,7 +23,7 @@ export async function getAdminDashboardStats() {
       where: {
         OR: [
           { verifiedAt: null },
-          { verifiedAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } },
+          { verifiedAt: { lt: staleBefore } },
         ],
       },
     }),

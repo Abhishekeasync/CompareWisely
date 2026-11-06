@@ -1,9 +1,23 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useLayoutEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
+import {
+  AuditIcon,
+  DraftIcon,
+  ExternalIcon,
+  MoreIcon,
+  PencilIcon,
+  PublishIcon,
+  TrashIcon,
+} from "@/components/icons";
 import { PricingVerificationModal } from "./pricing-modal";
+import { FieldError } from "@/components/field-error";
+import { adminSoftwareWriteSchema } from "@/lib/validations/software";
+import { readApiError, validationErrorPayload, dropField, type FieldErrors } from "@/lib/validations/feedback";
 
 interface Category {
   id: number;
@@ -73,6 +87,263 @@ interface AdminSoftwareTableProps {
   availableFeatures?: AvailableFeature[];
 }
 
+function isUsableImageSrc(src: string) {
+  const value = src.trim();
+  if (!value) return false;
+  if (value.startsWith("/")) return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function ProductMark({ software }: { software: SoftwareProduct }) {
+  const [broken, setBroken] = useState(false);
+  const src = software.logoUrl?.trim() || "";
+  const usable = isUsableImageSrc(src) && !broken;
+
+  if (!usable) {
+    return (
+      <span className="admin-ledger__mark" aria-hidden="true">
+        {software.mono || software.name.slice(0, 1).toUpperCase()}
+      </span>
+    );
+  }
+
+  return (
+    <Image
+      className="admin-ledger__mark"
+      src={src}
+      alt=""
+      width={32}
+      height={32}
+      unoptimized
+      onError={() => setBroken(true)}
+    />
+  );
+}
+
+function SoftwareRowActions({
+  software,
+  isLoading,
+  menuOpen,
+  onToggleMenu,
+  onCloseMenu,
+  onToggleStatus,
+  onEdit,
+  onAudit,
+  onDelete,
+}: {
+  software: SoftwareProduct;
+  isLoading: boolean;
+  menuOpen: boolean;
+  onToggleMenu: () => void;
+  onCloseMenu: () => void;
+  onToggleStatus: (status: "PUBLISHED" | "DRAFT") => void;
+  onEdit: () => void;
+  onAudit: () => void;
+  onDelete: () => void;
+}) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const menuId = `admin-ledger-menu-${software.id}`;
+
+  useLayoutEffect(() => {
+    if (!menuOpen) {
+      setCoords(null);
+      return;
+    }
+
+    function place() {
+      const trigger = triggerRef.current;
+      const menu = menuRef.current;
+      if (!trigger || !menu) return;
+      const r = trigger.getBoundingClientRect();
+      const menuW = menu.offsetWidth;
+      const menuH = menu.offsetHeight;
+      const gap = 6;
+      const pad = 8;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const below = r.bottom + gap;
+      const above = r.top - gap - menuH;
+      const top =
+        below + menuH <= vh - pad || above < pad
+          ? Math.min(below, Math.max(pad, vh - menuH - pad))
+          : above;
+      const left = Math.min(Math.max(pad, r.right - menuW), Math.max(pad, vw - menuW - pad));
+      setCoords({ top, left });
+    }
+
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [menuOpen]);
+
+  useLayoutEffect(() => {
+    if (!menuOpen || !coords) return;
+    menuRef.current?.querySelector<HTMLElement>("[role='menuitem']")?.focus({ preventScroll: true });
+  }, [menuOpen, coords]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function onPointerDown(event: PointerEvent) {
+      const node = event.target as Node;
+      if (triggerRef.current?.contains(node) || menuRef.current?.contains(node)) return;
+      onCloseMenu();
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseMenu();
+        triggerRef.current?.focus();
+        return;
+      }
+
+      if (!menuRef.current) return;
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Home" && event.key !== "End") {
+        return;
+      }
+
+      const items = Array.from(menuRef.current.querySelectorAll<HTMLElement>("[role='menuitem']"));
+      if (items.length === 0) return;
+      event.preventDefault();
+      const current = items.indexOf(document.activeElement as HTMLElement);
+      let next = 0;
+      if (event.key === "ArrowDown") next = current < 0 ? 0 : (current + 1) % items.length;
+      if (event.key === "ArrowUp") next = current < 0 ? items.length - 1 : (current - 1 + items.length) % items.length;
+      if (event.key === "Home") next = 0;
+      if (event.key === "End") next = items.length - 1;
+      items[next]?.focus();
+    }
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen, onCloseMenu]);
+
+  const menu = menuOpen
+    ? createPortal(
+        <div
+          ref={menuRef}
+          id={menuId}
+          className="admin-ledger__menu"
+          role="menu"
+          aria-label="More actions"
+          style={{
+            top: coords?.top ?? 0,
+            left: coords?.left ?? -9999,
+            visibility: coords ? "visible" : "hidden",
+          }}
+        >
+          {software.status === "PUBLISHED" ? (
+            <button
+              type="button"
+              className="admin-ledger__menu-item"
+              role="menuitem"
+              disabled={isLoading}
+              onClick={() => {
+                onCloseMenu();
+                onToggleStatus("DRAFT");
+              }}
+            >
+              <DraftIcon />
+              Save as draft
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="admin-ledger__menu-item"
+              role="menuitem"
+              disabled={isLoading}
+              onClick={() => {
+                onCloseMenu();
+                onToggleStatus("PUBLISHED");
+              }}
+            >
+              <PublishIcon />
+              Publish
+            </button>
+          )}
+          <Link
+            href={`/software/${software.slug}`}
+            target="_blank"
+            rel="noreferrer"
+            className="admin-ledger__menu-item"
+            role="menuitem"
+            onClick={onCloseMenu}
+          >
+            <ExternalIcon />
+            View live
+          </Link>
+          <div className="admin-ledger__menu-sep" role="separator" />
+          <button
+            type="button"
+            className="admin-ledger__menu-item is-danger"
+            role="menuitem"
+            onClick={() => {
+              onCloseMenu();
+              onDelete();
+            }}
+          >
+            <TrashIcon />
+            Delete
+          </button>
+        </div>,
+        document.body
+      )
+    : null;
+
+  return (
+    <div className="admin-ledger__acts">
+      <button
+        type="button"
+        className="admin-ledger__tool"
+        onClick={onEdit}
+        title="Edit"
+        aria-label="Edit details and checkpoints"
+      >
+        <PencilIcon />
+      </button>
+      <button
+        type="button"
+        className="admin-ledger__tool"
+        onClick={onAudit}
+        title="Audit pricing"
+        aria-label="Verify or update pricing"
+      >
+        <AuditIcon />
+      </button>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`admin-ledger__tool${menuOpen ? " is-open" : ""}`}
+        title="More"
+        aria-label="More actions"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        aria-controls={menuId}
+        onClick={onToggleMenu}
+      >
+        <MoreIcon />
+      </button>
+      {menu}
+    </div>
+  );
+}
+
 interface SoftwareFormData {
   id?: number;
   name: string;
@@ -114,6 +385,7 @@ export function AdminSoftwareTable({
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<SoftwareProduct | null>(null);
   const [deleteConfirmProduct, setDeleteConfirmProduct] = useState<SoftwareProduct | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
 
   // Form tab selection
   const [modalTab, setModalTab] = useState<"details" | "checkpoints" | "verdict">("details");
@@ -127,10 +399,14 @@ export function AdminSoftwareTable({
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [checkpointNotice, setCheckpointNotice] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Toast
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const clearField = (key: string) => setFieldErrors((prev) => dropField(prev, key));
 
   function showToast(message: string, type: "success" | "error" = "success") {
     setToast({ message, type });
@@ -171,6 +447,8 @@ export function AdminSoftwareTable({
   function handleOpenCreate() {
     setEditingProduct(null);
     setFormError(null);
+    setFieldErrors({});
+    setCheckpointNotice(null);
     setModalTab("details");
     setIsAddingNewCheckpoint(false);
 
@@ -207,6 +485,8 @@ export function AdminSoftwareTable({
   function handleOpenEdit(product: SoftwareProduct) {
     setEditingProduct(product);
     setFormError(null);
+    setFieldErrors({});
+    setCheckpointNotice(null);
     setModalTab("details");
     setIsAddingNewCheckpoint(false);
 
@@ -262,9 +542,11 @@ export function AdminSoftwareTable({
         slug: generatedSlug,
         mono: prev.mono ? prev.mono : generatedMono,
       }));
+      clearField("slug");
     } else {
       setFormData((prev) => ({ ...prev, name }));
     }
+    clearField("name");
   }
 
   // Checkpoint management helpers
@@ -298,12 +580,11 @@ export function AdminSoftwareTable({
       }
     }
 
-    if (!name) {
-      alert("Please provide a feature name.");
+    if (!name || name.length < 2) {
+      setCheckpointNotice("Enter a feature name of at least 2 characters.");
       return;
     }
 
-    // Check if duplicate
     const exists = checkpoints.some(
       (cp) =>
         (featId && cp.featureId === featId) ||
@@ -311,7 +592,7 @@ export function AdminSoftwareTable({
     );
 
     if (exists) {
-      alert(`A checkpoint for "${name}" is already in the list.`);
+      setCheckpointNotice(`“${name}” is already in the checkpoint list.`);
       return;
     }
 
@@ -328,6 +609,7 @@ export function AdminSoftwareTable({
     setNewCpName("");
     setNewCpTextValue("");
     setNewCpFeatureId("custom");
+    setCheckpointNotice(null);
     setIsAddingNewCheckpoint(false);
   }
 
@@ -338,7 +620,7 @@ export function AdminSoftwareTable({
     );
 
     if (unadded.length === 0) {
-      alert("All standard features are already present in the checkpoints list.");
+      showToast("Every standard feature is already in this list.", "error");
       return;
     }
 
@@ -358,7 +640,6 @@ export function AdminSoftwareTable({
   // Submit Create or Edit Form
   async function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setIsSubmittingForm(true);
     setFormError(null);
 
     const pros = formData.prosText
@@ -370,76 +651,75 @@ export function AdminSoftwareTable({
       .map((s) => s.trim())
       .filter(Boolean);
 
+    const payload = {
+      name: formData.name,
+      slug: formData.slug,
+      mono: formData.mono || undefined,
+      categoryId: Number(formData.categoryId),
+      tagline: formData.tagline || undefined,
+      description: formData.description,
+      websiteUrl: formData.websiteUrl || "",
+      trialUrl: formData.trialUrl || "",
+      logoUrl: formData.logoUrl || "",
+      status: formData.status,
+      pros,
+      cons,
+      startingPrice: formData.startingPrice || undefined,
+      featureCheckpoints: checkpoints,
+    };
+
+    const parsed = adminSoftwareWriteSchema.safeParse(payload);
+    if (!parsed.success) {
+      const failure = validationErrorPayload(parsed.error);
+      setFieldErrors(failure.fields);
+      setFormError(failure.message);
+      const detailKeys = ["name", "slug", "categoryId", "mono", "tagline", "description", "websiteUrl", "trialUrl", "logoUrl", "startingPrice"];
+      if (detailKeys.some((key) => failure.fields[key])) setModalTab("details");
+      else if (failure.fields.pros || failure.fields.cons) setModalTab("verdict");
+      else if (failure.fields.featureCheckpoints) setModalTab("checkpoints");
+      return;
+    }
+
+    setIsSubmittingForm(true);
+    setFieldErrors({});
+
+    const body = {
+      ...parsed.data,
+      mono: parsed.data.mono || formData.name.slice(0, 2).toUpperCase(),
+      tagline: formData.tagline,
+    };
+
     try {
-      if (editingProduct) {
-        // PATCH existing
-        const payload: any = {
-          name: formData.name,
-          slug: formData.slug,
-          mono: formData.mono || formData.name.slice(0, 2).toUpperCase(),
-          categoryId: Number(formData.categoryId),
-          tagline: formData.tagline || "",
-          description: formData.description,
-          websiteUrl: formData.websiteUrl || "",
-          trialUrl: formData.trialUrl || "",
-          logoUrl: formData.logoUrl || "",
-          status: formData.status,
-          pros,
-          cons,
-          startingPrice: formData.startingPrice || undefined,
-          featureCheckpoints: checkpoints,
-        };
-
-        const res = await fetch(`/api/v1/admin/software/${editingProduct.id}`, {
-          method: "PATCH",
+      const res = await fetch(
+        editingProduct ? `/api/v1/admin/software/${editingProduct.id}` : "/api/v1/admin/software",
+        {
+          method: editingProduct ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        const json = await res.json();
-        if (!res.ok || !json.success) {
-          throw new Error(json.error?.message || "Failed to update software product.");
+          body: JSON.stringify(body),
         }
-
-        setList((prev) =>
-          prev.map((item) => (item.id === editingProduct.id ? { ...item, ...json.data } : item))
+      );
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        const failure = readApiError(
+          json,
+          editingProduct
+            ? "Could not update this product. Please try again."
+            : "Could not create this product. Please try again."
         );
-        showToast(`"${formData.name}" updated with ${checkpoints.length} capability checkpoints.`);
-        setIsFormModalOpen(false);
-      } else {
-        // POST new
-        const payload: any = {
-          name: formData.name,
-          slug: formData.slug,
-          mono: formData.mono || formData.name.slice(0, 2).toUpperCase(),
-          categoryId: Number(formData.categoryId),
-          tagline: formData.tagline || undefined,
-          description: formData.description,
-          websiteUrl: formData.websiteUrl || undefined,
-          trialUrl: formData.trialUrl || undefined,
-          logoUrl: formData.logoUrl || undefined,
-          status: formData.status,
-          pros,
-          cons,
-          startingPrice: formData.startingPrice || undefined,
-          featureCheckpoints: checkpoints,
-        };
-
-        const res = await fetch("/api/v1/admin/software", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        const json = await res.json();
-        if (!res.ok || !json.success) {
-          throw new Error(json.error?.message || "Failed to create software product.");
-        }
-
-        setList((prev) => [json.data, ...prev]);
-        showToast(`"${formData.name}" created with ${checkpoints.length} capability checkpoints.`);
-        setIsFormModalOpen(false);
+        setFieldErrors(failure.fields);
+        if (failure.fields.slug || failure.fields.name || failure.fields.description) setModalTab("details");
+        throw new Error(failure.message);
       }
+
+      setList((prev) =>
+        editingProduct
+          ? prev.map((item) => (item.id === editingProduct.id ? { ...item, ...json.data } : item))
+          : [json.data, ...prev]
+      );
+      showToast(
+        `"${formData.name}" ${editingProduct ? "updated" : "created"} with ${checkpoints.length} capability checkpoints.`
+      );
+      setIsFormModalOpen(false);
     } catch (err: any) {
       setFormError(err.message || "An error occurred.");
     } finally {
@@ -465,7 +745,7 @@ export function AdminSoftwareTable({
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || "Failed to update status.");
+        throw new Error(readApiError(json, "Could not update the status. Please try again.").message);
       }
 
       setList((prev) =>
@@ -498,7 +778,7 @@ export function AdminSoftwareTable({
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || "Failed to delete software.");
+        throw new Error(readApiError(json, "Could not delete this product. Please try again.").message);
       }
 
       setList((prev) => prev.filter((item) => item.id !== deleteConfirmProduct.id));
@@ -586,230 +866,110 @@ export function AdminSoftwareTable({
         </div>
       )}
 
-      {/* Header Bar with Action & Summary */}
-      <div
-        className="row between"
-        style={{
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "16px",
-          marginBottom: "20px",
-        }}
-      >
-        <div className="row gap-8" style={{ alignItems: "center", flexWrap: "wrap" }}>
-          <span
-            className="badge"
-            style={{
-              background: "var(--surface-2)",
-              border: "1px solid var(--border)",
-              padding: "4px 10px",
-            }}
-          >
-            Total: <b>{stats.total}</b>
+      <div className="admin-ledger__head">
+        <div className="admin-ledger__meta">
+          <span>
+            Total <b>{stats.total}</b>
           </span>
-          <span
-            className="badge"
-            style={{
-              background: "var(--primary-soft)",
-              color: "var(--primary-text)",
-              border: "1px solid var(--primary)",
-              padding: "4px 10px",
-            }}
-          >
-            Published: <b>{stats.published}</b>
+          <span>
+            Published <b>{stats.published}</b>
           </span>
-          {stats.draft > 0 && (
-            <span
-              className="badge"
-              style={{
-                background: "var(--amber-soft)",
-                color: "var(--amber)",
-                border: "1px solid var(--amber)",
-                padding: "4px 10px",
-              }}
-            >
-              Draft: <b>{stats.draft}</b>
+          {stats.draft > 0 ? (
+            <span>
+              Draft <b>{stats.draft}</b>
             </span>
-          )}
-          {stats.stale > 0 && (
-            <span
-              className="badge"
-              style={{
-                background: "var(--danger-soft)",
-                color: "var(--danger)",
-                border: "1px solid var(--danger)",
-                padding: "4px 10px",
-              }}
-            >
-              Needs Audit (&gt;90d): <b>{stats.stale}</b>
+          ) : null}
+          {stats.stale > 0 ? (
+            <span className="is-alert">
+              Stale <b>{stats.stale}</b>
             </span>
-          )}
+          ) : null}
         </div>
-
-        <button
-          type="button"
-          onClick={handleOpenCreate}
-          className="btn btn--primary"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            fontWeight: 600,
-            padding: "8px 18px",
-          }}
-        >
-          <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>+</span> Add New Software
+        <button type="button" onClick={handleOpenCreate} className="btn btn--primary btn--sm">
+          Add software
         </button>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div
-        className="panel"
-        style={{
-          padding: "16px",
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          marginBottom: "20px",
-          display: "flex",
-          gap: "12px",
-          flexWrap: "wrap",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <div style={{ flex: "1 1 280px" }}>
-          <input
-            type="search"
-            placeholder="Search software by name, slug or keyword..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "8px 12px",
-              background: "var(--surface-2)",
-              border: "1px solid var(--border)",
-              color: "var(--text)",
-              borderRadius: "var(--r-sm)",
-              fontSize: "0.875rem",
-            }}
-          />
-        </div>
-
+      <div className="admin-ledger__toolbar">
+        <input
+          className="admin-ledger__search"
+          type="search"
+          placeholder="Search name, slug or keyword"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label="Search software"
+        />
         <div className="row gap-8" style={{ alignItems: "center", flexWrap: "wrap" }}>
           <select
+            className="admin-ledger__select"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            style={{
-              padding: "8px 12px",
-              background: "var(--surface-2)",
-              border: "1px solid var(--border)",
-              color: "var(--text)",
-              borderRadius: "var(--r-sm)",
-              fontSize: "0.875rem",
-            }}
+            onChange={(e) => setStatusFilter(e.target.value as "ALL" | "PUBLISHED" | "DRAFT" | "ARCHIVED")}
+            aria-label="Filter by status"
           >
-            <option value="ALL">All Statuses</option>
-            <option value="PUBLISHED">Published Only</option>
-            <option value="DRAFT">Draft Only</option>
+            <option value="ALL">All statuses</option>
+            <option value="PUBLISHED">Published</option>
+            <option value="DRAFT">Draft</option>
             <option value="ARCHIVED">Archived</option>
           </select>
-
-          {categories.length > 0 && (
+          {categories.length > 0 ? (
             <select
+              className="admin-ledger__select"
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              style={{
-                padding: "8px 12px",
-                background: "var(--surface-2)",
-                border: "1px solid var(--border)",
-                color: "var(--text)",
-                borderRadius: "var(--r-sm)",
-                fontSize: "0.875rem",
-              }}
+              aria-label="Filter by category"
             >
-              <option value="ALL">All Categories</option>
+              <option value="ALL">All categories</option>
               {categories.map((c) => (
                 <option key={c.id} value={String(c.id)}>
                   {c.name}
                 </option>
               ))}
             </select>
-          )}
-
-          {(searchQuery || statusFilter !== "ALL" || categoryFilter !== "ALL") && (
+          ) : null}
+          {searchQuery || statusFilter !== "ALL" || categoryFilter !== "ALL" ? (
             <button
               type="button"
-              className="btn btn--sm btn--ghost"
+              className="admin-ledger__act"
               onClick={() => {
                 setSearchQuery("");
                 setStatusFilter("ALL");
                 setCategoryFilter("ALL");
               }}
-              style={{ fontSize: "0.8rem", padding: "6px 10px" }}
             >
-              Clear Filters
+              Clear
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
-      {/* Main Software Table */}
-      <div
-        style={{
-          overflowX: "auto",
-          border: "1px solid var(--border)",
-          background: "var(--surface)",
-        }}
-      >
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
+      <div className="admin-ledger__scroller">
+        <table className="admin-ledger">
           <thead>
-            <tr
-              style={{
-                background: "var(--surface-2)",
-                borderBottom: "1px solid var(--border)",
-              }}
-            >
-              <th style={{ padding: "12px 16px", textAlign: "left" }}>Software Product</th>
-              <th style={{ padding: "12px 16px", textAlign: "left" }}>Category</th>
-              <th style={{ padding: "12px 16px", textAlign: "left" }}>Starting Price</th>
-              <th style={{ padding: "12px 16px", textAlign: "left" }}>Checkpoints</th>
-              <th style={{ padding: "12px 16px", textAlign: "left" }}>Status</th>
-              <th style={{ padding: "12px 16px", textAlign: "left" }}>Freshness</th>
-              <th
-                style={{
-                  padding: "12px 16px",
-                  textAlign: "right",
-                  minWidth: "320px",
-                }}
-              >
-                Actions
-              </th>
+            <tr>
+              <th>Product</th>
+              <th>Category</th>
+              <th>Starting price</th>
+              <th>Checks</th>
+              <th>Status</th>
+              <th>Freshness</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredList.length === 0 ? (
               <tr>
-                <td
-                  colSpan={7}
-                  style={{
-                    padding: "40px 16px",
-                    textAlign: "center",
-                    color: "var(--muted)",
-                  }}
-                >
-                  <p style={{ margin: "0 0 8px", fontSize: "1rem" }}>
-                    No software records found matching your filters.
-                  </p>
+                <td colSpan={7} style={{ padding: "36px 0", textAlign: "center", color: "var(--muted)" }}>
+                  <p style={{ margin: "0 0 12px" }}>No software records match these filters.</p>
                   <button
                     type="button"
-                    className="btn btn--sm btn--secondary"
+                    className="admin-ledger__act"
                     onClick={() => {
                       setSearchQuery("");
                       setStatusFilter("ALL");
                       setCategoryFilter("ALL");
                     }}
                   >
-                    Reset Filters
+                    Reset filters
                   </button>
                 </td>
               </tr>
@@ -824,294 +984,70 @@ export function AdminSoftwareTable({
                 const cpCount = sw.featureValues?.length || 0;
 
                 return (
-                  <tr
-                    key={sw.id}
-                    style={{
-                      borderBottom: "1px solid var(--border)",
-                      opacity: isLoading ? 0.6 : 1,
-                      transition: "opacity 0.2s ease",
-                    }}
-                  >
-                    {/* Software info */}
-                    <td style={{ padding: "12px 16px" }}>
-                      <div className="row gap-8" style={{ alignItems: "center" }}>
-                        {sw.logoUrl ? (
-                          <img
-                            src={sw.logoUrl}
-                            alt={sw.name}
-                            style={{
-                              width: "36px",
-                              height: "36px",
-                              objectFit: "contain",
-                              borderRadius: "var(--r-md)",
-                              border: "1px solid var(--border)",
-                              background: "var(--surface-2)",
-                            }}
-                            onError={(e) => {
-                              (e.target as HTMLElement).style.display = "none";
-                            }}
-                          />
-                        ) : (
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              width: "36px",
-                              height: "36px",
-                              borderRadius: "var(--r-md)",
-                              background: "var(--surface-2)",
-                              border: "1px solid var(--border)",
-                              fontWeight: 700,
-                              fontSize: "0.85rem",
-                              color: "var(--primary-text)",
-                              textTransform: "uppercase",
-                              flexShrink: 0,
-                            }}
-                          >
-                            {sw.mono || sw.name.slice(0, 2).toUpperCase()}
-                          </span>
-                        )}
+                  <tr key={sw.id} style={{ opacity: isLoading ? 0.55 : 1 }}>
+                    <td>
+                      <div className="admin-ledger__product">
+                        <ProductMark software={sw} />
                         <div>
-                          <div className="row gap-4" style={{ alignItems: "center" }}>
-                            <b>{sw.name}</b>
-                            {sw.websiteUrl && (
-                              <a
-                                href={sw.websiteUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title="Visit official website"
-                                style={{
-                                  color: "var(--muted)",
-                                  fontSize: "0.75rem",
-                                  textDecoration: "none",
-                                }}
-                              >
-                                ↗
-                              </a>
-                            )}
-                          </div>
+                          <b>{sw.name}</b>
                           <span className="tiny muted block">/{sw.slug}</span>
                         </div>
                       </div>
                     </td>
-
-                    {/* Category */}
-                    <td style={{ padding: "12px 16px" }}>
-                      <span
-                        className="badge"
-                        style={{
-                          background: "var(--surface-2)",
-                          border: "1px solid var(--border)",
-                          fontSize: "0.78rem",
-                        }}
-                      >
-                        {sw.category?.name || "Uncategorized"}
-                      </span>
+                    <td>
+                      <span className="tiny muted">{sw.category?.name || "Uncategorized"}</span>
                     </td>
-
-                    {/* Starting Price */}
-                    <td style={{ padding: "12px 16px" }}>
-                      <b style={{ color: "var(--text)" }}>{startingPlan?.displayPrice || "N/A"}</b>
-                      {startingPlan?.planName && (
+                    <td>
+                      <span>{startingPlan?.displayPrice || "Not listed"}</span>
+                      {startingPlan?.planName ? (
                         <span className="tiny muted block">{startingPlan.planName}</span>
-                      )}
+                      ) : null}
                     </td>
-
-                    {/* Feature Checkpoints Count */}
-                    <td style={{ padding: "12px 16px" }}>
+                    <td>
+                      <span className="admin-ledger__count num">{cpCount}</span>
+                      <span className="tiny muted block">features</span>
+                    </td>
+                    <td>
                       <span
-                        style={{
-                          display: "inline-block",
-                          padding: "2px 8px",
-                          fontSize: "0.75rem",
-                          fontWeight: 600,
-                          borderRadius: "var(--r-sm)",
-                          background: cpCount > 0 ? "rgba(16, 185, 129, 0.12)" : "var(--surface-2)",
-                          color: cpCount > 0 ? "#10b981" : "var(--muted)",
-                          border: `1px solid ${cpCount > 0 ? "#10b981" : "var(--border)"}`,
-                        }}
+                        className={`admin-ledger__status${
+                          sw.status === "PUBLISHED" ? " is-live" : sw.status === "DRAFT" ? " is-draft" : ""
+                        }`}
                       >
-                        {cpCount} checkpoints
+                        {sw.status === "PUBLISHED" ? "Live" : sw.status.toLowerCase()}
                       </span>
                     </td>
-
-                    {/* Status Badge */}
-                    <td style={{ padding: "12px 16px" }}>
-                      <span
-                        style={{
-                          display: "inline-block",
-                          padding: "2px 8px",
-                          fontSize: "0.72rem",
-                          fontWeight: 700,
-                          borderRadius: "var(--r-sm)",
-                          letterSpacing: "0.04em",
-                          background:
-                            sw.status === "PUBLISHED"
-                              ? "var(--primary-soft)"
-                              : sw.status === "DRAFT"
-                              ? "var(--amber-soft)"
-                              : "var(--surface-2)",
-                          color:
-                            sw.status === "PUBLISHED"
-                              ? "var(--primary-text)"
-                              : sw.status === "DRAFT"
-                              ? "var(--amber)"
-                              : "var(--muted)",
-                          border: `1px solid ${
-                            sw.status === "PUBLISHED"
-                              ? "var(--primary)"
-                              : sw.status === "DRAFT"
-                              ? "var(--amber)"
-                              : "var(--border)"
-                          }`,
-                        }}
-                      >
-                        {sw.status}
-                      </span>
-                    </td>
-
-                    {/* Verification Status */}
-                    <td style={{ padding: "12px 16px" }}>
+                    <td>
                       {sw.verifiedAt ? (
-                        <div>
-                          <span
-                            style={{
-                              display: "inline-block",
-                              padding: "2px 8px",
-                              fontSize: "0.72rem",
-                              fontWeight: 600,
-                              background: isStale ? "var(--amber-soft)" : "var(--primary-soft)",
-                              color: isStale ? "var(--amber)" : "var(--primary-text)",
-                              border: `1px solid ${isStale ? "var(--amber)" : "var(--primary)"}`,
-                              borderRadius: "var(--r-sm)",
-                            }}
-                          >
-                            {isStale ? "STALE (>90d)" : "VERIFIED"}
+                        <>
+                          <span className={`admin-ledger__status${isStale ? " is-stale" : " is-live"}`}>
+                            {isStale ? "Stale" : "Verified"}
                           </span>
-                          <span className="tiny muted block" style={{ marginTop: "2px" }}>
+                          <span className="tiny muted block">
                             {new Date(sw.verifiedAt).toLocaleDateString("en-IN", {
                               month: "short",
                               day: "numeric",
                               year: "numeric",
                             })}
                           </span>
-                        </div>
+                        </>
                       ) : (
-                        <span
-                          style={{
-                            display: "inline-block",
-                            padding: "2px 8px",
-                            fontSize: "0.72rem",
-                            fontWeight: 600,
-                            background: "var(--danger-soft)",
-                            color: "var(--danger)",
-                            border: "1px solid var(--danger)",
-                            borderRadius: "var(--r-sm)",
-                          }}
-                        >
-                          UNVERIFIED
+                        <span className="admin-ledger__status is-danger" style={{ color: "var(--danger)" }}>
+                          Unverified
                         </span>
                       )}
                     </td>
-
-                    {/* Actions */}
-                    <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                      <div
-                        className="row gap-4"
-                        style={{
-                          justifyContent: "flex-end",
-                          alignItems: "center",
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        {/* Publish / Draft toggle */}
-                        {sw.status === "PUBLISHED" ? (
-                          <button
-                            type="button"
-                            className="btn btn--sm btn--ghost"
-                            disabled={isLoading}
-                            onClick={() => handleToggleStatus(sw, "DRAFT")}
-                            title="Unpublish and move to Draft"
-                            style={{
-                              fontSize: "0.75rem",
-                              padding: "4px 8px",
-                              color: "var(--amber)",
-                              borderColor: "var(--amber)",
-                            }}
-                          >
-                            Save as Draft
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="btn btn--sm btn--primary"
-                            disabled={isLoading}
-                            onClick={() => handleToggleStatus(sw, "PUBLISHED")}
-                            title="Publish to public directory"
-                            style={{
-                              fontSize: "0.75rem",
-                              padding: "4px 8px",
-                            }}
-                          >
-                            Publish
-                          </button>
-                        )}
-
-                        {/* Edit Button */}
-                        <button
-                          type="button"
-                          className="btn btn--sm btn--secondary"
-                          onClick={() => handleOpenEdit(sw)}
-                          title="Edit details, features checklist, pricing, and pros/cons"
-                          style={{ fontSize: "0.75rem", padding: "4px 8px" }}
-                        >
-                          Edit
-                        </button>
-
-                        {/* Audit / Verify Pricing */}
-                        <button
-                          type="button"
-                          className="btn btn--sm btn--ghost"
-                          onClick={() => setActiveModalSoftware(sw)}
-                          title="Verify or update plan pricing with audit proof"
-                          style={{ fontSize: "0.75rem", padding: "4px 8px" }}
-                        >
-                          Audit Pricing
-                        </button>
-
-                        {/* Delete Button */}
-                        <button
-                          type="button"
-                          className="btn btn--sm btn--danger"
-                          onClick={() => setDeleteConfirmProduct(sw)}
-                          title="Permanently delete software product"
-                          style={{
-                            fontSize: "0.75rem",
-                            padding: "4px 8px",
-                            background: "transparent",
-                            color: "var(--danger)",
-                            border: "1px solid var(--danger)",
-                          }}
-                        >
-                          Delete
-                        </button>
-
-                        {/* Public Link */}
-                        <Link
-                          href={`/software/${sw.slug}`}
-                          target="_blank"
-                          className="btn btn--sm btn--ghost"
-                          title="View live public product page"
-                          style={{
-                            fontSize: "0.75rem",
-                            padding: "4px 8px",
-                            color: "var(--muted)",
-                          }}
-                        >
-                          View ↗
-                        </Link>
-                      </div>
+                    <td>
+                      <SoftwareRowActions
+                        software={sw}
+                        isLoading={isLoading}
+                        menuOpen={openMenuId === sw.id}
+                        onToggleMenu={() => setOpenMenuId(openMenuId === sw.id ? null : sw.id)}
+                        onCloseMenu={() => setOpenMenuId(null)}
+                        onToggleStatus={(status) => handleToggleStatus(sw, status)}
+                        onEdit={() => handleOpenEdit(sw)}
+                        onAudit={() => setActiveModalSoftware(sw)}
+                        onDelete={() => setDeleteConfirmProduct(sw)}
+                      />
                     </td>
                   </tr>
                 );
@@ -1267,6 +1203,7 @@ export function AdminSoftwareTable({
 
             <form
               onSubmit={handleFormSubmit}
+              noValidate
               style={{ display: "flex", flexDirection: "column", gap: "16px" }}
             >
               {/* TAB 1: PRODUCT DETAILS */}
@@ -1280,7 +1217,7 @@ export function AdminSoftwareTable({
                       gap: "12px",
                     }}
                   >
-                    <div>
+                    <div className={fieldErrors.name ? "field-invalid" : undefined}>
                       <label
                         style={{
                           display: "block",
@@ -1293,9 +1230,9 @@ export function AdminSoftwareTable({
                       </label>
                       <input
                         type="text"
-                        required
                         placeholder="e.g. Zoho Books"
                         value={formData.name}
+                        aria-invalid={fieldErrors.name ? true : undefined}
                         onChange={(e) => handleNameChange(e.target.value)}
                         style={{
                           width: "100%",
@@ -1306,9 +1243,10 @@ export function AdminSoftwareTable({
                           borderRadius: "var(--r-sm)",
                         }}
                       />
+                      <FieldError message={fieldErrors.name} />
                     </div>
 
-                    <div>
+                    <div className={fieldErrors.slug ? "field-invalid" : undefined}>
                       <label
                         style={{
                           display: "block",
@@ -1321,15 +1259,16 @@ export function AdminSoftwareTable({
                       </label>
                       <input
                         type="text"
-                        required
                         placeholder="e.g. zoho-books"
                         value={formData.slug}
-                        onChange={(e) =>
+                        aria-invalid={fieldErrors.slug ? true : undefined}
+                        onChange={(e) => {
+                          clearField("slug");
                           setFormData((prev) => ({
                             ...prev,
                             slug: e.target.value.toLowerCase(),
-                          }))
-                        }
+                          }));
+                        }}
                         style={{
                           width: "100%",
                           padding: "8px 10px",
@@ -1339,6 +1278,7 @@ export function AdminSoftwareTable({
                           borderRadius: "var(--r-sm)",
                         }}
                       />
+                      <FieldError message={fieldErrors.slug} />
                     </div>
                   </div>
 
@@ -1350,7 +1290,7 @@ export function AdminSoftwareTable({
                       gap: "12px",
                     }}
                   >
-                    <div>
+                    <div className={fieldErrors.categoryId ? "field-invalid" : undefined}>
                       <label
                         style={{
                           display: "block",
@@ -1363,12 +1303,13 @@ export function AdminSoftwareTable({
                       </label>
                       <select
                         value={formData.categoryId}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          clearField("categoryId");
                           setFormData((prev) => ({
                             ...prev,
                             categoryId: Number(e.target.value),
-                          }))
-                        }
+                          }));
+                        }}
                         style={{
                           width: "100%",
                           padding: "8px 10px",
@@ -1384,9 +1325,10 @@ export function AdminSoftwareTable({
                           </option>
                         ))}
                       </select>
+                      <FieldError message={fieldErrors.categoryId} />
                     </div>
 
-                    <div>
+                    <div className={fieldErrors.mono ? "field-invalid" : undefined}>
                       <label
                         style={{
                           display: "block",
@@ -1399,15 +1341,16 @@ export function AdminSoftwareTable({
                       </label>
                       <input
                         type="text"
-                        maxLength={5}
+                        maxLength={10}
                         placeholder="e.g. ZB"
                         value={formData.mono}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          clearField("mono");
                           setFormData((prev) => ({
                             ...prev,
                             mono: e.target.value.toUpperCase(),
-                          }))
-                        }
+                          }));
+                        }}
                         style={{
                           width: "100%",
                           padding: "8px 10px",
@@ -1419,6 +1362,7 @@ export function AdminSoftwareTable({
                           fontWeight: 700,
                         }}
                       />
+                      <FieldError message={fieldErrors.mono} />
                     </div>
 
                     <div>
@@ -1464,7 +1408,7 @@ export function AdminSoftwareTable({
                       gap: "12px",
                     }}
                   >
-                    <div>
+                    <div className={fieldErrors.tagline ? "field-invalid" : undefined}>
                       <label
                         style={{
                           display: "block",
@@ -1479,9 +1423,10 @@ export function AdminSoftwareTable({
                         type="text"
                         placeholder="e.g. GST-compliant cloud accounting for Indian SMBs"
                         value={formData.tagline}
-                        onChange={(e) =>
-                          setFormData((prev) => ({ ...prev, tagline: e.target.value }))
-                        }
+                        onChange={(e) => {
+                          clearField("tagline");
+                          setFormData((prev) => ({ ...prev, tagline: e.target.value }));
+                        }}
                         style={{
                           width: "100%",
                           padding: "8px 10px",
@@ -1491,9 +1436,10 @@ export function AdminSoftwareTable({
                           borderRadius: "var(--r-sm)",
                         }}
                       />
+                      <FieldError message={fieldErrors.tagline} />
                     </div>
 
-                    <div>
+                    <div className={fieldErrors.startingPrice ? "field-invalid" : undefined}>
                       <label
                         style={{
                           display: "block",
@@ -1508,12 +1454,13 @@ export function AdminSoftwareTable({
                         type="text"
                         placeholder="e.g. ₹749/mo"
                         value={formData.startingPrice}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          clearField("startingPrice");
                           setFormData((prev) => ({
                             ...prev,
                             startingPrice: e.target.value,
-                          }))
-                        }
+                          }));
+                        }}
                         style={{
                           width: "100%",
                           padding: "8px 10px",
@@ -1523,11 +1470,12 @@ export function AdminSoftwareTable({
                           borderRadius: "var(--r-sm)",
                         }}
                       />
+                      <FieldError message={fieldErrors.startingPrice} />
                     </div>
                   </div>
 
                   {/* Description */}
-                  <div>
+                  <div className={fieldErrors.description ? "field-invalid" : undefined}>
                     <label
                       style={{
                         display: "block",
@@ -1539,13 +1487,14 @@ export function AdminSoftwareTable({
                       Product Description <span style={{ color: "var(--danger)" }}>*</span>
                     </label>
                     <textarea
-                      required
                       rows={3}
                       placeholder="Comprehensive overview of capabilities, target audience, and market position..."
                       value={formData.description}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, description: e.target.value }))
-                      }
+                      aria-invalid={fieldErrors.description ? true : undefined}
+                      onChange={(e) => {
+                        clearField("description");
+                        setFormData((prev) => ({ ...prev, description: e.target.value }));
+                      }}
                       style={{
                         width: "100%",
                         padding: "8px 10px",
@@ -1557,9 +1506,8 @@ export function AdminSoftwareTable({
                         fontSize: "0.875rem",
                       }}
                     />
+                    <FieldError message={fieldErrors.description} />
                   </div>
-
-                  {/* URLs: Logo, Website, Trial */}
                   <div
                     style={{
                       display: "grid",
@@ -1567,7 +1515,7 @@ export function AdminSoftwareTable({
                       gap: "12px",
                     }}
                   >
-                    <div>
+                    <div className={fieldErrors.logoUrl ? "field-invalid" : undefined}>
                       <label
                         style={{
                           display: "block",
@@ -1582,9 +1530,10 @@ export function AdminSoftwareTable({
                         type="url"
                         placeholder="https://.../logo.png"
                         value={formData.logoUrl}
-                        onChange={(e) =>
-                          setFormData((prev) => ({ ...prev, logoUrl: e.target.value }))
-                        }
+                        onChange={(e) => {
+                          clearField("logoUrl");
+                          setFormData((prev) => ({ ...prev, logoUrl: e.target.value }));
+                        }}
                         style={{
                           width: "100%",
                           padding: "8px 10px",
@@ -1595,22 +1544,22 @@ export function AdminSoftwareTable({
                           fontSize: "0.8rem",
                         }}
                       />
-                      {formData.logoUrl && (
+                      {isUsableImageSrc(formData.logoUrl) ? (
                         <div style={{ marginTop: "4px" }}>
-                          <img
+                          <Image
                             src={formData.logoUrl}
                             alt="Preview"
-                            style={{
-                              height: "24px",
-                              maxWidth: "80px",
-                              objectFit: "contain",
-                            }}
+                            width={80}
+                            height={24}
+                            unoptimized
+                            style={{ height: "24px", width: "auto", maxWidth: "80px", objectFit: "contain" }}
                           />
                         </div>
-                      )}
+                      ) : null}
+                      <FieldError message={fieldErrors.logoUrl} />
                     </div>
 
-                    <div>
+                    <div className={fieldErrors.websiteUrl ? "field-invalid" : undefined}>
                       <label
                         style={{
                           display: "block",
@@ -1625,12 +1574,13 @@ export function AdminSoftwareTable({
                         type="url"
                         placeholder="https://example.com"
                         value={formData.websiteUrl}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          clearField("websiteUrl");
                           setFormData((prev) => ({
                             ...prev,
                             websiteUrl: e.target.value,
-                          }))
-                        }
+                          }));
+                        }}
                         style={{
                           width: "100%",
                           padding: "8px 10px",
@@ -1641,9 +1591,10 @@ export function AdminSoftwareTable({
                           fontSize: "0.8rem",
                         }}
                       />
+                      <FieldError message={fieldErrors.websiteUrl} />
                     </div>
 
-                    <div>
+                    <div className={fieldErrors.trialUrl ? "field-invalid" : undefined}>
                       <label
                         style={{
                           display: "block",
@@ -1658,12 +1609,13 @@ export function AdminSoftwareTable({
                         type="url"
                         placeholder="https://example.com/trial"
                         value={formData.trialUrl}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          clearField("trialUrl");
                           setFormData((prev) => ({
                             ...prev,
                             trialUrl: e.target.value,
-                          }))
-                        }
+                          }));
+                        }}
                         style={{
                           width: "100%",
                           padding: "8px 10px",
@@ -1674,6 +1626,7 @@ export function AdminSoftwareTable({
                           fontSize: "0.8rem",
                         }}
                       />
+                      <FieldError message={fieldErrors.trialUrl} />
                     </div>
                   </div>
                 </div>
@@ -1682,7 +1635,7 @@ export function AdminSoftwareTable({
               {/* TAB 2: FEATURE CHECKPOINTS & CAPABILITIES */}
               {modalTab === "checkpoints" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                  {/* Top Checkpoint Controls */}
+                  <FieldError message={fieldErrors.featureCheckpoints} />
                   <div
                     className="row between"
                     style={{
@@ -1783,6 +1736,7 @@ export function AdminSoftwareTable({
                       <span className="eyebrow" style={{ color: "var(--primary)" }}>
                         Add New Feature Checkpoint
                       </span>
+                      <FieldError message={checkpointNotice} />
 
                       <div
                         style={{
@@ -1842,7 +1796,10 @@ export function AdminSoftwareTable({
                               type="text"
                               placeholder="e.g. E-way Bill Direct Generation"
                               value={newCpName}
-                              onChange={(e) => setNewCpName(e.target.value)}
+                              onChange={(e) => {
+                                setNewCpName(e.target.value);
+                                setCheckpointNotice(null);
+                              }}
                               style={{
                                 width: "100%",
                                 padding: "6px 8px",
@@ -2208,9 +2165,10 @@ export function AdminSoftwareTable({
                         "Complete GST e-invoicing & e-way bill\nRobust mobile app with offline view\nAutomated bank feeds"
                       }
                       value={formData.prosText}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, prosText: e.target.value }))
-                      }
+                      onChange={(e) => {
+                        clearField("pros");
+                        setFormData((prev) => ({ ...prev, prosText: e.target.value }));
+                      }}
                       style={{
                         width: "100%",
                         padding: "8px 10px",
@@ -2223,6 +2181,7 @@ export function AdminSoftwareTable({
                         lineHeight: 1.5,
                       }}
                     />
+                    <FieldError message={fieldErrors.pros} />
                   </div>
 
                   <div>
@@ -2243,9 +2202,10 @@ export function AdminSoftwareTable({
                         "Advanced multi-currency requires Pro plan\nStrict concurrent user limits\nOccasional sync lag on desktop client"
                       }
                       value={formData.consText}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, consText: e.target.value }))
-                      }
+                      onChange={(e) => {
+                        clearField("cons");
+                        setFormData((prev) => ({ ...prev, consText: e.target.value }));
+                      }}
                       style={{
                         width: "100%",
                         padding: "8px 10px",
@@ -2258,6 +2218,7 @@ export function AdminSoftwareTable({
                         lineHeight: 1.5,
                       }}
                     />
+                    <FieldError message={fieldErrors.cons} />
                   </div>
                 </div>
               )}

@@ -54,6 +54,72 @@ export function MenuIcon() {
   );
 }
 
+export function PencilIcon() {
+  return (
+    <Icon>
+      <path d="M4 20h4l10.5-10.5-4-4L4 16z" />
+      <path d="m12.5 7.5 4 4" />
+    </Icon>
+  );
+}
+
+export function AuditIcon() {
+  return (
+    <Icon>
+      <path d="M8 4h8l4 4v12H8z" />
+      <path d="M12 4v4h4" />
+      <path d="M11 13h6M11 17h4" />
+    </Icon>
+  );
+}
+
+export function MoreIcon() {
+  return (
+    <Icon strokeWidth="2.4">
+      <circle cx="5" cy="12" r="1" fill="currentColor" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+      <circle cx="19" cy="12" r="1" fill="currentColor" />
+    </Icon>
+  );
+}
+
+export function DraftIcon() {
+  return (
+    <Icon>
+      <path d="M7 3h7l5 5v13H7z" />
+      <path d="M14 3v5h5" />
+      <path d="M10 13h6" />
+    </Icon>
+  );
+}
+
+export function PublishIcon() {
+  return (
+    <Icon>
+      <path d="M12 16V5" />
+      <path d="m8 9 4-4 4 4" />
+      <path d="M5 19h14" />
+    </Icon>
+  );
+}
+
+export function ExternalIcon() {
+  return (
+    <Icon>
+      <path d="M10 5H5v14h14v-5" />
+      <path d="M13 5h6v6M19 5l-8 8" />
+    </Icon>
+  );
+}
+
+export function TrashIcon() {
+  return (
+    <Icon>
+      <path d="M5 7h14M10 7V5h4v2M8 7v12h8V7" />
+    </Icon>
+  );
+}
+
 export function ChevronIcon() {
   return (
     <Icon strokeWidth="2">

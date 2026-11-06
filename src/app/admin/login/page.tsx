@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHead } from "@/components/page-head";
+import { FieldError } from "@/components/field-error";
 import { SITE_ADMIN_EMAIL } from "@/lib/site";
+import { loginSchema } from "@/lib/validations/auth";
+import { readApiError, validationErrorPayload, dropField, type FieldErrors } from "@/lib/validations/feedback";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -11,11 +14,24 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("Admin@CompareWisely2026!");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  const clearField = (key: string) => setFieldErrors((prev) => dropField(prev, key));
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setErrorMessage(null);
+
+    const parsed = loginSchema.safeParse({ email, password });
+    if (!parsed.success) {
+      const failure = validationErrorPayload(parsed.error);
+      setFieldErrors(failure.fields);
+      setErrorMessage(failure.message);
+      return;
+    }
+
+    setLoading(true);
+    setFieldErrors({});
 
     try {
       const res = await fetch("/api/v1/admin/auth/login", {
@@ -26,7 +42,9 @@ export default function AdminLoginPage() {
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || "Invalid credentials.");
+        const failure = readApiError(json, "That email and password don't match. Check both and try again.");
+        setFieldErrors(failure.fields);
+        throw new Error(failure.message);
       }
 
       router.push("/admin");
@@ -69,17 +87,21 @@ export default function AdminLoginPage() {
               </div>
             ) : null}
 
-            <form onSubmit={handleLogin} className="stack gap-16">
-              <div>
+            <form onSubmit={handleLogin} className="stack gap-16" noValidate>
+              <div className={fieldErrors.email ? "field-invalid" : undefined}>
                 <label className="tiny muted block" htmlFor="a-email" style={{ marginBottom: "6px" }}>
                   Staff Email Address
                 </label>
                 <input
                   id="a-email"
                   type="email"
-                  required
+                  autoComplete="username"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  aria-invalid={fieldErrors.email ? true : undefined}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    clearField("email");
+                  }}
                   style={{
                     width: "100%",
                     padding: "10px 14px",
@@ -89,18 +111,23 @@ export default function AdminLoginPage() {
                     fontSize: "0.9rem",
                   }}
                 />
+                <FieldError message={fieldErrors.email} />
               </div>
 
-              <div>
+              <div className={fieldErrors.password ? "field-invalid" : undefined}>
                 <label className="tiny muted block" htmlFor="a-pass" style={{ marginBottom: "6px" }}>
                   Password
                 </label>
                 <input
                   id="a-pass"
                   type="password"
-                  required
+                  autoComplete="current-password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  aria-invalid={fieldErrors.password ? true : undefined}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    clearField("password");
+                  }}
                   style={{
                     width: "100%",
                     padding: "10px 14px",
@@ -110,6 +137,7 @@ export default function AdminLoginPage() {
                     fontSize: "0.9rem",
                   }}
                 />
+                <FieldError message={fieldErrors.password} />
               </div>
 
               <button

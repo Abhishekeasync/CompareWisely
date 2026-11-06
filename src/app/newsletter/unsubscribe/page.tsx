@@ -4,6 +4,7 @@ import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { PageHead } from "@/components/page-head";
+import { readApiError } from "@/lib/validations/feedback";
 
 function UnsubscribeContent() {
   const searchParams = useSearchParams();
@@ -29,7 +30,7 @@ function UnsubscribeContent() {
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || "Failed to process unsubscribe request.");
+        throw new Error(readApiError(json, "We couldn't update your email preferences. Please try again.").message);
       }
 
       setStatus("success");

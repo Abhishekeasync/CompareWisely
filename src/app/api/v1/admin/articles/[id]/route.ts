@@ -5,6 +5,7 @@ import { updateArticle } from "@/lib/services/content.service";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
 import { articleInputSchema } from "@/lib/validations/content";
+import { validationErrorPayload } from "@/lib/validations/feedback";
 
 function errStatus(msg: string) {
   return msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500;
@@ -49,8 +50,8 @@ export async function PATCH(
             success: false,
             error: {
               code: "VALIDATION_FAILED",
-              message: "Invalid patch payload.",
-              details: parsed.error.flatten(),
+              message: "Choose publish or draft.",
+              fields: validationErrorPayload(parsed.error).fields,
             },
           },
           { status: 400 }
@@ -78,14 +79,7 @@ export async function PATCH(
     const parseResult = articleInputSchema.safeParse(body);
     if (!parseResult.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: "VALIDATION_FAILED",
-            message: "Invalid article inputs.",
-            details: parseResult.error.flatten(),
-          },
-        },
+        { success: false, error: validationErrorPayload(parseResult.error) },
         { status: 400 }
       );
     }

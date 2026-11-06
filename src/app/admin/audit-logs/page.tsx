@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/services/auth.service";
-import { getAuditLogs } from "@/lib/services/admin.service";
+// import { getAuditLogs } from "@/lib/services/admin.service";
 import { PageHead } from "@/components/page-head";
-import { AdminNav } from "@/components/admin/admin-nav";
 
 export const instant = false;
 
@@ -12,7 +11,7 @@ export default async function AdminAuditLogsPage() {
     redirect("/admin/login");
   }
 
-  const logs = await getAuditLogs(100);
+  // const logs = await getAuditLogs(100);
 
   return (
     <>
@@ -22,10 +21,9 @@ export default async function AdminAuditLogsPage() {
         title="Administrative Audit Trail"
         lead="Immutable system record of catalog price verifications, editorial modifications, and comment moderations."
       />
+      {/*
       <section className="section">
         <div className="container">
-          <AdminNav current="audit-logs" />
-
           <div style={{ overflowX: "auto", border: "1px solid var(--border)", background: "var(--surface)" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
               <thead>
@@ -92,6 +90,7 @@ export default async function AdminAuditLogsPage() {
           </div>
         </div>
       </section>
+      */}
     </>
   );
 }

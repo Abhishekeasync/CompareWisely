@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FieldError } from "@/components/field-error";
+import { pricingVerifySchema } from "@/lib/validations/software";
+import { readApiError, validationErrorPayload, dropField, type FieldErrors } from "@/lib/validations/feedback";
 
 interface PricingVerificationModalProps {
   software: {
@@ -31,14 +34,32 @@ export function PricingVerificationModal({ software, onClose }: PricingVerificat
   );
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   if (!software) return null;
+
+  const clearField = (key: string) => setFieldErrors((prev) => dropField(prev, key));
 
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault();
     if (!software) return;
-    setSubmitting(true);
     setFeedback(null);
+
+    const parsed = pricingVerifySchema.safeParse({
+      softwareId: software.id,
+      planId: selectedPlanId,
+      newPrice,
+      sourceUrl,
+    });
+    if (!parsed.success) {
+      const failure = validationErrorPayload(parsed.error);
+      setFieldErrors(failure.fields);
+      setFeedback(failure.message);
+      return;
+    }
+
+    setSubmitting(true);
+    setFieldErrors({});
 
     try {
       const res = await fetch("/api/v1/admin/software/verify", {
@@ -54,7 +75,9 @@ export function PricingVerificationModal({ software, onClose }: PricingVerificat
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || "Verification failed.");
+        const failure = readApiError(json, "Could not save this verification. Please try again.");
+        setFieldErrors(failure.fields);
+        throw new Error(failure.message);
       }
 
       router.refresh();
@@ -114,8 +137,8 @@ export function PricingVerificationModal({ software, onClose }: PricingVerificat
           </div>
         ) : null}
 
-        <form onSubmit={handleVerify} className="stack gap-16">
-          <div>
+        <form onSubmit={handleVerify} className="stack gap-16" noValidate>
+          <div className={fieldErrors.planId ? "field-invalid" : undefined}>
             <label className="tiny muted block" htmlFor="v-plan" style={{ marginBottom: "4px" }}>
               Select Pricing Plan Tier
             </label>
@@ -125,6 +148,7 @@ export function PricingVerificationModal({ software, onClose }: PricingVerificat
               onChange={(e) => {
                 const pId = Number(e.target.value);
                 setSelectedPlanId(pId);
+                clearField("planId");
                 const plan = software.pricingPlans.find((p) => p.id === pId);
                 if (plan) {
                   setNewPrice(plan.displayPrice || "");
@@ -145,19 +169,23 @@ export function PricingVerificationModal({ software, onClose }: PricingVerificat
                 </option>
               ))}
             </select>
+            <FieldError message={fieldErrors.planId} />
           </div>
 
-          <div>
+          <div className={fieldErrors.newPrice ? "field-invalid" : undefined}>
             <label className="tiny muted block" htmlFor="v-price" style={{ marginBottom: "4px" }}>
               Verified Display Price
             </label>
             <input
               id="v-price"
               type="text"
-              required
               placeholder="e.g. from ₹749/month"
               value={newPrice}
-              onChange={(e) => setNewPrice(e.target.value)}
+              aria-invalid={fieldErrors.newPrice ? true : undefined}
+              onChange={(e) => {
+                setNewPrice(e.target.value);
+                clearField("newPrice");
+              }}
               style={{
                 width: "100%",
                 padding: "8px 12px",
@@ -166,19 +194,23 @@ export function PricingVerificationModal({ software, onClose }: PricingVerificat
                 color: "var(--fg)",
               }}
             />
+            <FieldError message={fieldErrors.newPrice} />
           </div>
 
-          <div>
+          <div className={fieldErrors.sourceUrl ? "field-invalid" : undefined}>
             <label className="tiny muted block" htmlFor="v-source" style={{ marginBottom: "4px" }}>
               Proof / Vendor Pricing URL (Mandatory)
             </label>
             <input
               id="v-source"
               type="url"
-              required
               placeholder="https://vendor.com/pricing"
               value={sourceUrl}
-              onChange={(e) => setSourceUrl(e.target.value)}
+              aria-invalid={fieldErrors.sourceUrl ? true : undefined}
+              onChange={(e) => {
+                setSourceUrl(e.target.value);
+                clearField("sourceUrl");
+              }}
               style={{
                 width: "100%",
                 padding: "8px 12px",
@@ -187,6 +219,7 @@ export function PricingVerificationModal({ software, onClose }: PricingVerificat
                 color: "var(--fg)",
               }}
             />
+            <FieldError message={fieldErrors.sourceUrl} />
           </div>
 
           <div className="row gap-12" style={{ justifyContent: "flex-end", marginTop: "12px" }}>

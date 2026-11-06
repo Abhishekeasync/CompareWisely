@@ -3,39 +3,12 @@ import { connection } from "next/server";
 import { requireAuth } from "@/lib/services/auth.service";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@prisma/client";
-import { z } from "zod";
+import { adminSoftwarePatchSchema } from "@/lib/validations/software";
+import { readApiError, validationErrorPayload } from "@/lib/validations/feedback";
 
 function errStatus(msg: string) {
   return msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500;
 }
-
-const featureCheckpointSchema = z.object({
-  id: z.number().optional(),
-  featureId: z.number().optional(),
-  featureName: z.string().trim().min(2, "Feature name is required."),
-  categoryName: z.string().trim().optional(),
-  valueKind: z.enum(["YES", "NO", "PARTIAL", "PAID_ADDON", "UNAVAILABLE", "UNKNOWN"]).default("YES"),
-  textValue: z.string().trim().optional().nullable(),
-  note: z.string().trim().optional().nullable(),
-});
-
-const patchSchema = z.object({
-  action: z.enum(["publish", "draft", "archive"]).optional(),
-  name: z.string().trim().min(2).optional(),
-  slug: z.string().trim().min(2).regex(/^[a-z0-9-]+$/).optional(),
-  mono: z.string().trim().max(10).optional(),
-  categoryId: z.number().int().positive().optional(),
-  tagline: z.string().trim().max(255).optional(),
-  description: z.string().trim().min(10).optional(),
-  websiteUrl: z.string().url().or(z.literal("")).optional(),
-  trialUrl: z.string().url().or(z.literal("")).optional(),
-  logoUrl: z.string().url().or(z.literal("")).optional(),
-  status: z.enum(["PUBLISHED", "DRAFT", "ARCHIVED"]).optional(),
-  pros: z.array(z.string().trim()).optional(),
-  cons: z.array(z.string().trim()).optional(),
-  startingPrice: z.string().trim().optional(),
-  featureCheckpoints: z.array(featureCheckpointSchema).optional(),
-});
 
 /* ── PATCH /api/v1/admin/software/[id] ─────────────────── */
 export async function PATCH(
@@ -56,10 +29,10 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const parsed = patchSchema.safeParse(body);
+    const parsed = adminSoftwarePatchSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: { code: "VALIDATION_FAILED", message: "Invalid patch.", details: parsed.error.flatten() } },
+        { success: false, error: validationErrorPayload(parsed.error) },
         { status: 400 }
       );
     }
@@ -73,7 +46,7 @@ export async function PATCH(
       });
       if (conflict) {
         return NextResponse.json(
-          { success: false, error: { code: "SLUG_CONFLICT", message: `A product with slug "${data.slug}" already exists.` } },
+          { success: false, error: { code: "SLUG_CONFLICT", message: `“${data.slug}” is already used by another product. Choose a different URL slug.`, fields: { slug: `“${data.slug}” is already used. Choose a different URL slug.` } } },
           { status: 409 }
         );
       }

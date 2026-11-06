@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connection } from "next/server";
 import { authenticateUser, signSessionToken, SESSION_COOKIE_NAME } from "@/lib/services/auth.service";
 import { loginSchema } from "@/lib/validations/auth";
+import { validationErrorPayload } from "@/lib/validations/feedback";
 
 export async function POST(request: NextRequest) {
   await connection();
@@ -12,14 +13,7 @@ export async function POST(request: NextRequest) {
 
     if (!parseResult.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: "VALIDATION_FAILED",
-            message: "Invalid email or password format.",
-            details: parseResult.error.flatten(),
-          },
-        },
+        { success: false, error: validationErrorPayload(parseResult.error) },
         { status: 400 }
       );
     }
@@ -33,7 +27,7 @@ export async function POST(request: NextRequest) {
           success: false,
           error: {
             code: "UNAUTHORIZED",
-            message: "Invalid credentials or inactive account.",
+            message: "That email and password don't match. Check both and try again.",
           },
         },
         { status: 401 }
@@ -63,7 +57,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: {
           code: "INTERNAL_ERROR",
-          message: error.message || "Failed to log in.",
+          message: "We couldn't sign you in. Please try again.",
         },
       },
       { status: 500 }

@@ -3,7 +3,6 @@ import { getCurrentSession } from "@/lib/services/auth.service";
 import { getAllSoftwareForAdmin } from "@/lib/services/admin.service";
 import { prisma } from "@/lib/db";
 import { PageHead } from "@/components/page-head";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminSoftwareTable } from "@/components/admin/software-table";
 
 export const instant = false;
@@ -36,7 +35,6 @@ export default async function AdminSoftwarePage() {
       />
       <section className="section">
         <div className="container">
-          <AdminNav current="software" />
           <AdminSoftwareTable
             initialSoftwareList={softwareList}
             categories={categories}

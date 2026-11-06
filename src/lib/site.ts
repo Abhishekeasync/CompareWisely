@@ -13,3 +13,7 @@ export function siteUrl(path = ""): string {
   if (!path) return SITE_URL;
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
+
+export function isAdminPath(pathname: string | null | undefined): boolean {
+  return Boolean(pathname?.startsWith("/admin"));
+}

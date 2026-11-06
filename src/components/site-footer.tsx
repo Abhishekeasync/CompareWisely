@@ -3,7 +3,23 @@ import { LinkedInIcon, XIcon, YouTubeIcon } from "./icons";
 import { SiteBrand } from "./site-brand";
 import { SITE_CONTACT_EMAIL, SITE_NAME } from "@/lib/site";
 
-export function SiteFooter({ year }: { year: number }) {
+export function SiteFooter({ year, compact = false }: { year: number; compact?: boolean }) {
+  if (compact) {
+    return (
+      <footer className="footer footer--admin">
+        <div className="container">
+          <div className="footer__bottom footer__bottom--admin">
+            <p className="disclaimer">
+              Staff operations portal. Catalogue, pricing, and moderation actions are recorded in the audit trail. © {year} {SITE_NAME}.
+            </p>
+            <div className="row gap-16 tiny">
+              <Link href="/">View public site</Link>
+            </div>
+          </div>
+        </div>
+      </footer>
+    );
+  }
 
   return (
     <footer className="footer">

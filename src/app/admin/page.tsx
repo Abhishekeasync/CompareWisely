@@ -1,95 +1,131 @@
+import { connection } from "next/server";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getCurrentSession } from "@/lib/services/auth.service";
 import { getAdminDashboardStats } from "@/lib/services/admin.service";
 import { PageHead } from "@/components/page-head";
-import { AdminNav } from "@/components/admin/admin-nav";
-import Link from "next/link";
+import { ChevronIcon } from "@/components/icons";
 
 export const instant = false;
 
 export default async function AdminDashboardPage() {
+  await connection();
   const session = await getCurrentSession();
   if (!session) {
     redirect("/admin/login");
   }
 
-  const stats = await getAdminDashboardStats();
+  const stats = await getAdminDashboardStats(new Date());
+  const pricingAlert = stats.stalePricingCount > 0;
+  const commentsAlert = stats.pendingCommentsCount > 0;
+
+  const kpis = [
+    {
+      href: "/admin/software",
+      label: "Catalogue size",
+      value: stats.totalSoftware,
+      note: `Across ${stats.totalCategories} active software categories`,
+      alert: false,
+    },
+    {
+      href: "/admin/software",
+      label: "Pricing queue",
+      value: stats.stalePricingCount,
+      note: "Tiers unverified or older than 90 days",
+      alert: pricingAlert,
+    },
+    {
+      href: "/admin/comments",
+      label: "Pending moderation",
+      value: stats.pendingCommentsCount,
+      note: "Reader comments awaiting verification",
+      alert: commentsAlert,
+    },
+    {
+      href: "/admin/articles",
+      label: "Newsletter reach",
+      value: stats.totalSubscribers,
+      note: "Subscribers with verified consent",
+      alert: false,
+    },
+  ];
+
+  const tasks = [
+    {
+      href: "/admin/software",
+      index: "01",
+      kicker: pricingAlert ? "Attention" : "Catalogue",
+      title: "Software & pricing audit",
+      lead: pricingAlert
+        ? `${stats.stalePricingCount} pricing tiers need verification.`
+        : "Inspect catalog records, plans, and proof sources.",
+    },
+    {
+      href: "/admin/comments",
+      index: "02",
+      kicker: commentsAlert ? "Queue" : "Community",
+      title: "Comment moderation",
+      lead: commentsAlert
+        ? `${stats.pendingCommentsCount} comments waiting for a decision.`
+        : "No comments are waiting in the moderation queue.",
+    },
+    {
+      href: "/admin/comparisons",
+      index: "03",
+      kicker: "Editorial",
+      title: "Comparisons builder",
+      lead: `${stats.totalComparisons} curated head-to-head pages in the ledger.`,
+    },
+    // {
+    //   href: "/admin/audit-logs",
+    //   index: "04",
+    //   kicker: "Compliance",
+    //   title: "Audit ledger",
+    //   lead: "Immutable record of pricing, editorial, and moderation actions.",
+    // },
+  ];
 
   return (
     <>
       <PageHead
-        current="Admin Portal"
+        current="Operations"
         eyebrow={`Signed in as ${session.name} (${session.role})`}
-        title="CompareWisely Operations Portal"
-        lead="Catalogue integrity control, stale pricing alerts, comment moderation, and audit logs."
+        title="Operations portal"
+        lead="Catalogue integrity, stale pricing, and comment moderation."
       />
       <section className="section">
         <div className="container">
-          <AdminNav current="dashboard" />
-
-          {/* Metric KPI Cards */}
-          <div className="story-grid" style={{ marginBottom: "32px" }}>
-            <div className="panel card--pad" style={{ padding: "20px" }}>
-              <span className="eyebrow">Catalogue Size</span>
-              <h3 style={{ fontSize: "2rem", margin: "8px 0 4px", color: "var(--fg)" }}>
-                {stats.totalSoftware}
-              </h3>
-              <p className="tiny muted" style={{ margin: 0 }}>
-                Across {stats.totalCategories} active software categories
-              </p>
-            </div>
-
-            <div className="panel card--pad" style={{ padding: "20px", borderLeft: stats.stalePricingCount > 0 ? "4px solid var(--amber)" : "1px solid var(--border)" }}>
-              <span className="eyebrow" style={{ color: stats.stalePricingCount > 0 ? "var(--amber)" : "var(--muted)" }}>
-                Pricing Verification Queue
-              </span>
-              <h3 style={{ fontSize: "2rem", margin: "8px 0 4px", color: "var(--fg)" }}>
-                {stats.stalePricingCount}
-              </h3>
-              <p className="tiny muted" style={{ margin: 0 }}>
-                Tiers unverified or older than 90 days
-              </p>
-            </div>
-
-            <div className="panel card--pad" style={{ padding: "20px", borderLeft: stats.pendingCommentsCount > 0 ? "4px solid var(--primary-text)" : "1px solid var(--border)" }}>
-              <span className="eyebrow" style={{ color: stats.pendingCommentsCount > 0 ? "var(--primary-text)" : "var(--muted)" }}>
-                Pending Moderation
-              </span>
-              <h3 style={{ fontSize: "2rem", margin: "8px 0 4px", color: "var(--fg)" }}>
-                {stats.pendingCommentsCount}
-              </h3>
-              <p className="tiny muted" style={{ margin: 0 }}>
-                Reader comments awaiting verification
-              </p>
-            </div>
-
-            <div className="panel card--pad" style={{ padding: "20px" }}>
-              <span className="eyebrow">Newsletter Reach</span>
-              <h3 style={{ fontSize: "2rem", margin: "8px 0 4px", color: "var(--fg)" }}>
-                {stats.totalSubscribers}
-              </h3>
-              <p className="tiny muted" style={{ margin: 0 }}>
-                Subscribers with verified consent
-              </p>
-            </div>
+          <div className="admin-kpis">
+            {kpis.map((kpi) => (
+              <Link
+                key={kpi.label}
+                href={kpi.href}
+                className={`admin-kpi${kpi.alert ? " is-alert" : ""}`}
+              >
+                <span className="eyebrow">{kpi.label}</span>
+                <p className="admin-kpi__value num">{kpi.value}</p>
+                <p className="tiny muted">{kpi.note}</p>
+              </Link>
+            ))}
           </div>
 
-          {/* Action Hub */}
-          <div className="panel card--pad" style={{ padding: "28px" }}>
-            <h3 style={{ fontSize: "1.15rem", marginBottom: "16px" }}>Immediate Operational Tasks</h3>
-            <div className="row gap-12" style={{ flexWrap: "wrap" }}>
-              <Link className="btn btn--primary" href="/admin/software">
-                Inspect Software Catalogue &amp; Pricing
-              </Link>
-              <Link className="btn" href="/admin/comments">
-                Review Pending Comments ({stats.pendingCommentsCount})
-              </Link>
-              <Link className="btn" href="/admin/comparisons">
-                Manage Curated Comparisons ({stats.totalComparisons})
-              </Link>
-              <Link className="btn btn--ghost" href="/admin/audit-logs">
-                View Audit Ledger
-              </Link>
+          <div className="admin-tasks">
+            <span className="eyebrow">Immediate tasks</span>
+            <div className="path-grid">
+              {tasks.map((task) => (
+                <Link key={task.href} className="path-card" href={task.href}>
+                  <span className="path-card__index mono">{task.index}</span>
+                  <span className="eyebrow">{task.kicker}</span>
+                  <div>
+                    <b>{task.title}</b>
+                    <p>{task.lead}</p>
+                  </div>
+                  <span className="path-card__go">
+                    Open
+                    <ChevronIcon />
+                  </span>
+                </Link>
+              ))}
             </div>
           </div>
         </div>

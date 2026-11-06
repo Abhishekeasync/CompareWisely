@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CommentStatus } from "@prisma/client";
+import { readApiError } from "@/lib/validations/feedback";
 
 interface CommentModerationListProps {
   initialComments: any[];
@@ -13,6 +14,7 @@ export function CommentModerationList({ initialComments }: CommentModerationList
   const [comments, setComments] = useState(initialComments);
   const [filter, setFilter] = useState<string>("ALL");
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function handleStatusChange(commentId: number, nextStatus: CommentStatus) {
     setLoadingId(commentId);
@@ -26,15 +28,16 @@ export function CommentModerationList({ initialComments }: CommentModerationList
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || "Failed to update comment status.");
+        throw new Error(readApiError(json, "Could not update this comment. Please try again.").message);
       }
 
       setComments((prev) =>
         prev.map((c) => (c.id === commentId ? { ...c, status: nextStatus } : c))
       );
+      setNotice(null);
       router.refresh();
-    } catch (err: any) {
-      alert(err.message || "Failed to update status.");
+    } catch (err: unknown) {
+      setNotice(err instanceof Error ? err.message : "Could not update this comment. Please try again.");
     } finally {
       setLoadingId(null);
     }
@@ -47,7 +50,6 @@ export function CommentModerationList({ initialComments }: CommentModerationList
 
   return (
     <div>
-      {/* Filter Tabs */}
       <div className="row gap-8" style={{ marginBottom: "20px" }}>
         {["ALL", "PENDING", "APPROVED", "REJECTED"].map((tab) => (
           <button
@@ -60,6 +62,22 @@ export function CommentModerationList({ initialComments }: CommentModerationList
           </button>
         ))}
       </div>
+
+      {notice ? (
+        <div
+          role="alert"
+          style={{
+            marginBottom: "16px",
+            padding: "10px 14px",
+            background: "var(--danger-soft)",
+            border: "1px solid var(--danger)",
+            color: "var(--danger)",
+            fontSize: "0.85rem",
+          }}
+        >
+          {notice}
+        </div>
+      ) : null}
 
       {filteredComments.length === 0 ? (
         <div className="panel card--pad" style={{ padding: "32px", textAlign: "center" }}>

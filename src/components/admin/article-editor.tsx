@@ -4,10 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHead } from "@/components/page-head";
-import { AdminNav } from "@/components/admin/admin-nav";
+import { FieldError } from "@/components/field-error";
+import { ArticleImageCarousel } from "@/components/content/article-image-carousel";
 import { isDirectHostedVideoUrl, isManagedArticleMediaUrl } from "@/lib/uploads/article-media-config";
 import { MAX_ARTICLE_IMAGES, normalizeArticleImageUrls } from "@/lib/uploads/article-images";
 import { isArticleMediaUrl } from "@/lib/validations/media-url";
+import { articleInputSchema, categoryCreateSchema } from "@/lib/validations/content";
+import { readApiError, validationErrorPayload, dropField, type FieldErrors } from "@/lib/validations/feedback";
 import { uiInput as INPUT_STYLE, uiInputMono as MONO_INPUT } from "@/lib/ui-surfaces";
 
 interface CategoryOption {
@@ -67,9 +70,19 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 /* ─── Generic labelled field wrapper ───────────────────── */
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  error,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div>
+    <div className={error ? "field-invalid" : undefined}>
       <div style={{ marginBottom: "6px" }}>
         <label
           style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--fg)", display: "block" }}
@@ -81,6 +94,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
         )}
       </div>
       {children}
+      <FieldError message={error} />
     </div>
   );
 }
@@ -134,16 +148,21 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
   /* ── Form state ──────────────────────────────────────── */
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [imageUploading, setImageUploading] = useState(false);
   const [videoUploading, setVideoUploading] = useState(false);
   const [mediaUploadError, setMediaUploadError] = useState<string | null>(null);
 
   /* ── Handlers ────────────────────────────────────────── */
+  const clearError = (key: string) => setFieldErrors((prev) => dropField(prev, key));
+
   function handleTitleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value;
     setTitle(val);
+    clearError("title");
     if (!slug || slug === autoSlug(title)) {
       setSlug(autoSlug(val));
+      clearError("slug");
     }
     if (!metaTitle) setMetaTitle(val.slice(0, 60));
   }
@@ -157,8 +176,14 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
   }
 
   async function createCategory() {
-    setCatCreating(true);
     setCatError(null);
+    const parsed = categoryCreateSchema.safeParse({ name: newCatName, slug: newCatSlug });
+    if (!parsed.success) {
+      setCatError(validationErrorPayload(parsed.error).message);
+      return;
+    }
+
+    setCatCreating(true);
     try {
       const res = await fetch("/api/v1/admin/categories", {
         method: "POST",
@@ -167,7 +192,8 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || "Failed to create category.");
+        const failure = readApiError(json, "Could not create that category.");
+        throw new Error(failure.message);
       }
       const created: CategoryOption = json.data;
       setCategories((prev) => [...prev, created]);
@@ -287,7 +313,6 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
     setErrorMsg(null);
 
     const tags = tagsInput
@@ -311,6 +336,17 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
       canonicalUrl: canonicalUrl || undefined,
     };
 
+    const parsed = articleInputSchema.safeParse(payload);
+    if (!parsed.success) {
+      const failure = validationErrorPayload(parsed.error);
+      setFieldErrors(failure.fields);
+      setErrorMsg(failure.message);
+      return;
+    }
+
+    setSubmitting(true);
+    setFieldErrors({});
+
     try {
       const url = isEdit
         ? `/api/v1/admin/articles/${article!.id}`
@@ -325,7 +361,9 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || "Failed to save article.");
+        const failure = readApiError(json, "Could not save this article. Please try again.");
+        setFieldErrors(failure.fields);
+        throw new Error(failure.message);
       }
 
       router.push("/admin/articles");
@@ -348,9 +386,7 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
       />
       <section className="section">
         <div className="container" style={{ maxWidth: "900px" }}>
-          <AdminNav current="articles" />
-
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <div
               className="panel card--pad"
               style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "28px" }}
@@ -449,7 +485,7 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
                           <button
                             type="button"
                             className="btn btn--sm btn--primary"
-                            disabled={catCreating || !newCatName || !newCatSlug}
+                            disabled={catCreating}
                             onClick={createCategory}
                           >
                             {catCreating ? "Creating..." : "Create & Select"}
@@ -465,11 +501,10 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
               <div>
                 <SectionLabel>Content</SectionLabel>
                 <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-                  <Field label="Article Title *">
+                  <Field label="Article Title *" error={fieldErrors.title}>
                     <input
                       id="art-title"
                       type="text"
-                      required
                       minLength={5}
                       placeholder="e.g. GSTR-2B Automated Reconciliation in 2026: Tally vs Zoho vs Busy"
                       value={title}
@@ -478,7 +513,7 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
                     />
                   </Field>
 
-                  <Field label="URL Slug *" hint="Auto-generated from title — only lowercase letters, numbers, hyphens">
+                  <Field label="URL Slug *" hint="Auto-generated from title — only lowercase letters, numbers, hyphens" error={fieldErrors.slug}>
                     <input
                       id="art-slug"
                       type="text"
@@ -487,36 +522,44 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
                       pattern="^[a-z0-9-]+$"
                       placeholder="e.g. gstr-2b-reconciliation-2026"
                       value={slug}
-                      onChange={(e) => setSlug(e.target.value)}
+                      onChange={(e) => {
+                        setSlug(e.target.value);
+                        clearError("slug");
+                      }}
                       style={MONO_INPUT}
                     />
                   </Field>
 
-                  <Field label="Short Excerpt" hint="Max 300 characters — shown on listing cards and used as default meta description">
+                  <Field label="Short Excerpt" hint="Max 300 characters — shown on listing cards and used as default meta description" error={fieldErrors.excerpt}>
                     <textarea
                       id="art-excerpt"
                       rows={2}
                       maxLength={300}
                       placeholder="Brief synopsis displayed on listing cards and search results..."
                       value={excerpt}
-                      onChange={(e) => setExcerpt(e.target.value)}
+                      onChange={(e) => {
+                        setExcerpt(e.target.value);
+                        clearError("excerpt");
+                      }}
                       style={{ ...INPUT_STYLE, fontFamily: "inherit", lineHeight: 1.5 }}
                     />
                   </Field>
 
-                  <Field label="Article Body *" hint="Markdown supported: ## Headings, **bold**, - lists, > blockquotes">
+                  <Field label="Article Body *" hint="Markdown supported: ## Headings, **bold**, - lists, > blockquotes" error={fieldErrors.content}>
                     <textarea
                       id="art-content"
-                      required
                       rows={16}
                       placeholder={"## The Core Compliance Challenge\n\nExplain technical workflows, statutory notifications, or side-by-side differences...\n\n### Practical Recommendations\n\n1. Zoho Books for cloud...\n2. Tally Prime for offline vouchers..."}
                       value={content}
-                      onChange={(e) => setContent(e.target.value)}
+                      onChange={(e) => {
+                        setContent(e.target.value);
+                        clearError("content");
+                      }}
                       style={{ ...MONO_INPUT, lineHeight: 1.6 }}
                     />
                   </Field>
 
-                  <Field label="Comma-separated Tags">
+                  <Field label="Comma-separated Tags" error={fieldErrors.tags}>
                     <input
                       id="art-tags"
                       type="text"
@@ -549,7 +592,8 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
                 <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
                   <Field
                     label={`Article Images (${imageUrls.length}/${MAX_ARTICLE_IMAGES})`}
-                    hint="Upload JPEG, PNG, WebP, or GIF (max 5 MB each) to S3, or paste a direct HTTPS URL. First image is the hero / Open Graph image."
+                    hint="Upload JPEG, PNG, WebP, or GIF (max 5 MB each) to S3, or paste a direct HTTPS URL. The first image is the hero and Open Graph image. Two or more images show as a carousel on the article."
+                    error={fieldErrors.imageUrls}
                   >
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center" }}>
                       <label
@@ -596,67 +640,12 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
                       </button>
                     </div>
                     {imageUrls.length > 0 ? (
-                      <div
-                        style={{
-                          marginTop: "14px",
-                          display: "grid",
-                          gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-                          gap: "12px",
-                        }}
-                      >
-                        {imageUrls.map((url, index) => (
-                          <div
-                            key={url}
-                            style={{
-                              border: "1px solid var(--border)",
-                              padding: "6px",
-                              background: "var(--surface-2)",
-                              position: "relative",
-                            }}
-                          >
-                            <span
-                              className="tiny"
-                              style={{
-                                position: "absolute",
-                                top: "8px",
-                                left: "8px",
-                                background: "var(--surface)",
-                                padding: "2px 6px",
-                                border: "1px solid var(--border)",
-                                fontWeight: 700,
-                              }}
-                            >
-                              {index === 0 ? "Hero" : `#${index + 1}`}
-                            </span>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={url}
-                              alt={`Article image ${index + 1}`}
-                              style={{
-                                width: "100%",
-                                height: "120px",
-                                objectFit: "cover",
-                                display: "block",
-                              }}
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = "none";
-                              }}
-                            />
-                            <button
-                              type="button"
-                              className="btn btn--sm btn--ghost"
-                              style={{
-                                width: "100%",
-                                marginTop: "6px",
-                                color: "var(--danger)",
-                              }}
-                              disabled={removingImageUrl === url}
-                              onClick={() => void removeArticleImage(url)}
-                            >
-                              {removingImageUrl === url ? "Removing…" : "Remove"}
-                            </button>
-                          </div>
-                        ))}
+                      <div style={{ marginTop: "14px" }}>
+                        <ArticleImageCarousel
+                          images={imageUrls}
+                          onRemove={(url) => void removeArticleImage(url)}
+                          removingUrl={removingImageUrl}
+                        />
                       </div>
                     ) : null}
                   </Field>
@@ -664,6 +653,7 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
                   <Field
                     label="Video"
                     hint="Upload MP4 or WebM (max 50 MB) to S3, or paste a YouTube / Vimeo link for embed."
+                    error={fieldErrors.videoUrl}
                   >
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center" }}>
                       <label className="btn btn--sm btn--ghost" style={{ cursor: "pointer", margin: 0 }}>
@@ -683,7 +673,10 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
                       type="text"
                       placeholder="https://www.youtube.com/watch?v=… or /uploads/articles/…"
                       value={videoUrl}
-                      onChange={(e) => setVideoUrl(e.target.value)}
+                      onChange={(e) => {
+                        setVideoUrl(e.target.value);
+                        clearError("videoUrl");
+                      }}
                       style={{ ...INPUT_STYLE, marginTop: "10px" }}
                     />
                     {videoUrl && isHostedVideoFile ? (
@@ -717,6 +710,7 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
                   <Field
                     label="SEO Title (meta title)"
                     hint={`${metaTitle.length}/60 characters — leave blank to use article title`}
+                    error={fieldErrors.metaTitle}
                   >
                     <input
                       id="art-meta-title"
@@ -755,6 +749,7 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
                   <Field
                     label="Meta Description"
                     hint={`${metaDescription.length}/160 characters — shown in Google search snippets`}
+                    error={fieldErrors.metaDescription}
                   >
                     <textarea
                       id="art-meta-desc"
@@ -793,13 +788,17 @@ export function ArticleEditorForm({ categories: initialCategories, article }: Ar
                   <Field
                     label="Canonical URL"
                     hint="Use only if this article is a copy/syndication of content from another URL"
+                    error={fieldErrors.canonicalUrl}
                   >
                     <input
                       id="art-canonical"
                       type="url"
                       placeholder="https://originalsite.com/original-article-path"
                       value={canonicalUrl}
-                      onChange={(e) => setCanonicalUrl(e.target.value)}
+                      onChange={(e) => {
+                        setCanonicalUrl(e.target.value);
+                        clearError("canonicalUrl");
+                      }}
                       style={MONO_INPUT}
                     />
                   </Field>

@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/services/auth.service";
 import { getCommentsForAdmin } from "@/lib/services/admin.service";
 import { PageHead } from "@/components/page-head";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { CommentModerationList } from "@/components/admin/comment-moderation";
 
 export const instant = false;
@@ -25,7 +24,6 @@ export default async function AdminCommentsPage() {
       />
       <section className="section">
         <div className="container">
-          <AdminNav current="comments" />
           <CommentModerationList initialComments={comments} />
         </div>
       </section>

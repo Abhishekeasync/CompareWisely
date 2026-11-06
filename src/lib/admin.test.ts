@@ -43,7 +43,7 @@ test("auth.service: signSessionToken and verifySessionToken round-trip securely"
 });
 
 test("admin.service: getAdminDashboardStats returns valid integer counts", async () => {
-  const stats = await getAdminDashboardStats();
+  const stats = await getAdminDashboardStats(new Date());
   assert.ok(stats.totalSoftware > 0);
   assert.ok(stats.totalCategories > 0);
   assert.ok(typeof stats.pendingCommentsCount === "number");

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connection } from "next/server";
 import { createComment } from "@/lib/services/content.service";
 import { commentSubmitSchema } from "@/lib/validations/content";
+import { validationErrorPayload } from "@/lib/validations/feedback";
 import crypto from "crypto";
 
 export async function POST(
@@ -21,14 +22,7 @@ export async function POST(
 
     if (!parseResult.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: "VALIDATION_FAILED",
-            message: "Invalid comment input.",
-            details: parseResult.error.flatten(),
-          },
-        },
+        { success: false, error: validationErrorPayload(parseResult.error) },
         { status: 400 }
       );
     }
@@ -53,7 +47,9 @@ export async function POST(
         success: false,
         error: {
           code: "INTERNAL_ERROR",
-          message: error.message || "Failed to submit comment.",
+          message: error.message === "Article not found or not published."
+            ? "This article is not open for comments."
+            : "We couldn't save your comment. Please try again.",
         },
       },
       { status: 500 }

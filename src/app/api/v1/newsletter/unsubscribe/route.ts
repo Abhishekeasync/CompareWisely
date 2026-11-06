@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connection } from "next/server";
 import { unsubscribeNewsletter } from "@/lib/services/newsletter.service";
 import { newsletterUnsubscribeSchema } from "@/lib/validations/newsletter";
+import { validationErrorPayload } from "@/lib/validations/feedback";
 
 export async function POST(request: NextRequest) {
   await connection();
@@ -12,13 +13,7 @@ export async function POST(request: NextRequest) {
 
     if (!parseResult.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: "VALIDATION_FAILED",
-            message: "Valid unsubscribe token is required.",
-          },
-        },
+        { success: false, error: validationErrorPayload(parseResult.error) },
         { status: 400 }
       );
     }
@@ -37,7 +32,9 @@ export async function POST(request: NextRequest) {
         success: false,
         error: {
           code: "INTERNAL_ERROR",
-          message: error.message || "Failed to process unsubscribe request.",
+          message: error.message === "Invalid or expired unsubscribe token."
+            ? "This unsubscribe link is invalid or has expired. Use the latest link from your email."
+            : "We couldn't update your email preferences. Please try again.",
         },
       },
       { status: 400 }

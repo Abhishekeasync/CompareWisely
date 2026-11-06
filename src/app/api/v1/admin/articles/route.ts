@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { requireAuth } from "@/lib/services/auth.service";
 import { getAllArticlesForAdmin, createArticle } from "@/lib/services/content.service";
 import { articleInputSchema } from "@/lib/validations/content";
+import { validationErrorPayload } from "@/lib/validations/feedback";
 
 export async function GET(request: NextRequest) {
   await connection();
@@ -40,14 +41,7 @@ export async function POST(request: NextRequest) {
     const parseResult = articleInputSchema.safeParse(body);
     if (!parseResult.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: "VALIDATION_FAILED",
-            message: "Invalid article inputs.",
-            details: parseResult.error.flatten(),
-          },
-        },
+        { success: false, error: validationErrorPayload(parseResult.error) },
         { status: 400 }
       );
     }

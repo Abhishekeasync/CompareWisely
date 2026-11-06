@@ -4,3 +4,4 @@ export * from "./comparison";
 export * from "./recommendation";
 export * from "./content";
 export * from "./newsletter";
+export * from "./feedback";

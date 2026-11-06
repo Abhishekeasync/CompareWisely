@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { FieldError } from "@/components/field-error";
+import { commentSubmitSchema } from "@/lib/validations/content";
+import { readApiError, validationErrorPayload, dropField, type FieldErrors } from "@/lib/validations/feedback";
 
 interface CommentFormProps {
   articleSlug: string;
@@ -12,31 +15,51 @@ export function CommentForm({ articleSlug }: CommentFormProps) {
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  const clearField = (key: string) => setFieldErrors((prev) => dropField(prev, key));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
     setFeedback(null);
+
+    const parsed = commentSubmitSchema.safeParse({
+      articleSlug,
+      authorName,
+      authorEmail,
+      content,
+    });
+    if (!parsed.success) {
+      const failure = validationErrorPayload(parsed.error);
+      setFieldErrors(failure.fields);
+      setFeedback({ type: "error", text: failure.message });
+      return;
+    }
+
+    setSubmitting(true);
+    setFieldErrors({});
 
     try {
       const res = await fetch(`/api/v1/articles/${articleSlug}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          authorName,
-          authorEmail,
-          content,
+          authorName: parsed.data.authorName,
+          authorEmail: parsed.data.authorEmail,
+          content: parsed.data.content,
         }),
       });
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || "Failed to submit comment.");
+        const failure = readApiError(json, "We couldn't save your comment. Please try again.");
+        setFieldErrors(failure.fields);
+        throw new Error(failure.message);
       }
 
       setFeedback({
         type: "success",
-        text: "Thank you! Your comment has been submitted and will appear once verified by our moderation team.",
+        text: "Thank you. Your comment is in the queue and will appear after a moderator reviews it.",
       });
       setAuthorName("");
       setAuthorEmail("");
@@ -44,7 +67,7 @@ export function CommentForm({ articleSlug }: CommentFormProps) {
     } catch (err) {
       setFeedback({
         type: "error",
-        text: err instanceof Error ? err.message : "An unexpected error occurred. Please try again.",
+        text: err instanceof Error ? err.message : "Something went wrong. Please try again.",
       });
     } finally {
       setSubmitting(false);
@@ -73,21 +96,23 @@ export function CommentForm({ articleSlug }: CommentFormProps) {
         </div>
       ) : null}
 
-      <form onSubmit={handleSubmit} className="stack gap-16">
+      <form onSubmit={handleSubmit} className="stack gap-16" noValidate>
         <div className="row gap-12" style={{ flexWrap: "wrap" }}>
-          <div style={{ flex: "1 1 240px" }}>
+          <div className={fieldErrors.authorName ? "field-invalid" : undefined} style={{ flex: "1 1 240px" }}>
             <label htmlFor="c-name" className="tiny muted block" style={{ marginBottom: "4px" }}>
               Your Name &amp; Title (e.g. Ramesh S., CA)
             </label>
             <input
               id="c-name"
               type="text"
-              required
-              minLength={2}
               maxLength={60}
               placeholder="e.g. CA Ramesh Sharma"
               value={authorName}
-              onChange={(e) => setAuthorName(e.target.value)}
+              aria-invalid={fieldErrors.authorName ? true : undefined}
+              onChange={(e) => {
+                setAuthorName(e.target.value);
+                clearField("authorName");
+              }}
               style={{
                 width: "100%",
                 padding: "8px 12px",
@@ -96,19 +121,23 @@ export function CommentForm({ articleSlug }: CommentFormProps) {
                 color: "var(--fg)",
               }}
             />
+            <FieldError message={fieldErrors.authorName} />
           </div>
 
-          <div style={{ flex: "1 1 240px" }}>
+          <div className={fieldErrors.authorEmail ? "field-invalid" : undefined} style={{ flex: "1 1 240px" }}>
             <label htmlFor="c-email" className="tiny muted block" style={{ marginBottom: "4px" }}>
               Work Email (kept private, never published)
             </label>
             <input
               id="c-email"
               type="email"
-              required
               placeholder="ramesh@example.com"
               value={authorEmail}
-              onChange={(e) => setAuthorEmail(e.target.value)}
+              aria-invalid={fieldErrors.authorEmail ? true : undefined}
+              onChange={(e) => {
+                setAuthorEmail(e.target.value);
+                clearField("authorEmail");
+              }}
               style={{
                 width: "100%",
                 padding: "8px 12px",
@@ -117,22 +146,25 @@ export function CommentForm({ articleSlug }: CommentFormProps) {
                 color: "var(--fg)",
               }}
             />
+            <FieldError message={fieldErrors.authorEmail} />
           </div>
         </div>
 
-        <div>
+        <div className={fieldErrors.content ? "field-invalid" : undefined}>
           <label htmlFor="c-content" className="tiny muted block" style={{ marginBottom: "4px" }}>
             Your Commentary or Question
           </label>
           <textarea
             id="c-content"
-            required
             rows={4}
-            minLength={5}
             maxLength={1000}
             placeholder="Share your practical experience or questions regarding this workflow..."
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            aria-invalid={fieldErrors.content ? true : undefined}
+            onChange={(e) => {
+              setContent(e.target.value);
+              clearField("content");
+            }}
             style={{
               width: "100%",
               padding: "8px 12px",
@@ -143,6 +175,7 @@ export function CommentForm({ articleSlug }: CommentFormProps) {
               resize: "vertical",
             }}
           />
+          <FieldError message={fieldErrors.content} />
         </div>
 
         <div className="row between" style={{ alignItems: "center" }}>

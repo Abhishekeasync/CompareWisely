@@ -18,5 +18,5 @@ export const articleMediaUrlSchema = z
   .string()
   .trim()
   .refine(isArticleMediaUrl, {
-    message: "Must be a valid URL or an uploaded file path.",
+    message: "Use a full https:// link, or an uploaded file path.",
   });
